@@ -5,9 +5,7 @@
 
 import sys, os
 
-sys.path.append(os.path.abspath('./'))
-
-
+sys.path.append(os.path.abspath('.'))
 
 import numpy as np
 import tensorflow as tf
@@ -18,7 +16,7 @@ from tensorflow.keras import backend as  K
 
 from utils.metrics import *
 from utils.augmentation import *
-from ..models import UnetDefault
+from models.UnetDefault import Unet
 
 
 '''
@@ -27,17 +25,23 @@ from ..models import UnetDefault
 
 # {'train': 369, 'val': 123, 'test': 124}
 
-BANDS = ['ndfi_t0', 'ndfi_t1']
+BANDS = [
+    'red_t0','green_t0', 'blue_t0',
+    'red_t1','green_t1', 'blue_t1',
+    'ndfi_t0','ndfi_t1'
+]
+
+TARGET_BANDS = BANDS[-2:]
 
 KERNEL_SIZE = 512
 
 NUM_CLASSES = 1
 
-TRAIN_DATASET = '01_selective_logging/data'
-VAL_DATASET = '01_selective_logging/data'
+TRAIN_DATASET = '01_selective_logging/data/train_dataset_1.tfrecord'
+VAL_DATASET = '01_selective_logging/data/val_dataset_1.tfrecord'
 
 # config train variables
-PATH_CHECK_POINTS = 'src/logging/pipeline_a/model/ckpt1/'
+PATH_CHECK_POINTS = '01_selective_logging/model/ckpt1/checkpoint.model.keras'
 
 HYPER_PARAMS = {
     'optimizer': tf.keras.optimizers.Nadam(learning_rate=0.001),
@@ -50,7 +54,7 @@ TRAIN_SIZE = 369
 VAL_SIZE = 123
 
 SAVE_CPKT = True
-EPOCHS = 25
+EPOCHS = 1
 BATCH_SIZE = 9
 
 TRAIN_STEPS = int(TRAIN_SIZE / BATCH_SIZE)
@@ -73,6 +77,7 @@ def read_example(serialized: bytes) -> tuple[tf.Tensor, tf.Tensor]:
 
     example = tf.io.parse_single_example(serialized, features_dict)
 
+
     inputs = tf.io.parse_tensor(example["inputs"], tf.float32)
     labels = tf.io.parse_tensor(example["labels"], tf.int64)
 
@@ -89,7 +94,9 @@ def read_example(serialized: bytes) -> tuple[tf.Tensor, tf.Tensor]:
 def replace_nan(data, label):
     data = tf.where(tf.math.is_nan(data), 0., data)
     label = tf.where(tf.math.is_nan(label), 0., label)
-    return data, label
+
+    # get only last two channels
+    return data[:,:,-2:], label
 
 
 '''
@@ -109,11 +116,13 @@ dataset_val = tf.data.TFRecordDataset([VAL_DATASET])\
     .map(read_example)\
     .map(replace_nan)
 
+for data, label in dataset_train.take(1):
+    print(data.shape)
 
-dataset_train = dataset_train.shuffle(buffer_size=TRAIN_SIZE).repeat().batch(BATCH_SIZE).prefetch(tf.data.AUTOTUNE)
+
+# dataset_train = dataset_train.shuffle(buffer_size=TRAIN_SIZE).repeat().batch(BATCH_SIZE).prefetch(tf.data.AUTOTUNE)
 dataset_train = apply_augmentation(dataset_train).repeat().batch(BATCH_SIZE).prefetch(tf.data.AUTOTUNE)
 dataset_val = dataset_val.batch(1).repeat()
-
 
 
 
@@ -126,11 +135,27 @@ dataset_val = dataset_val.batch(1).repeat()
 import datetime, os
 from glob import glob
 
-HYPER_PARAMS['loss'] = soft_dice_loss
+HYPER_PARAMS['loss'] = tf.keras.losses.Dice()
 
 listckpt = glob(PATH_CHECK_POINTS + '*')
 
-model = UnetDefault(BANDS, optimizer=HYPER_PARAMS['optimizer'], loss=soft_dice_loss, metrics=[running_recall, running_f1, running_precision])
+model = Unet(
+    TARGET_BANDS, 
+    optimizer=HYPER_PARAMS['optimizer'], 
+    loss=tf.keras.losses.Dice(), 
+    # metrics=[
+    #     tf.keras.metrics.IoU(num_classes=2, target_class_ids=[0]),
+    #     tf.keras.metrics.Precision(),
+    #     tf.keras.metrics.Recall(),
+    #     tf.keras.metrics.F1Score()
+    # ]
+    metrics=[
+        running_recall, 
+        running_f1, 
+        running_precision, 
+        tf.keras.metrics.IoU(num_classes=2, target_class_ids=[1])]
+)
+
 
 model = model.getModel(n_classes=NUM_CLASSES)
 
@@ -141,18 +166,18 @@ if len(listckpt) > 0:
 if SAVE_CPKT:
 
     checkpoint_path = os.path.dirname(PATH_CHECK_POINTS)
-    log_dir = "src/logging/pipeline_a/logs/" + datetime.datetime.now().strftime("%Y%m%d-%H%M%S")
+    log_dir = "01_selective_logging/model/logs/" + datetime.datetime.now().strftime("%Y%m%d-%H%M%S")
 
     cp_callback = tf.keras.callbacks.ModelCheckpoint(
         filepath=PATH_CHECK_POINTS,
         save_best_only=True,
-        save_weights_only=True,
+        #save_weights_only=True,
         verbose=1
     )
 
     earlystopper_callback = tf.keras.callbacks.EarlyStopping(
         min_delta = 0,
-        patience = 5,
+        patience = 6,
         verbose = 1,
         restore_best_weights = True
     )

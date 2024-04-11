@@ -10,3 +10,4 @@ rasterio
 torchvision
 scikit-learn
 gcloud
+tensorflow[and-cuda]

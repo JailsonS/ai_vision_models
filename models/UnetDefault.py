@@ -7,7 +7,7 @@ from tensorflow.keras import backend as  K
 
 class Unet():
 
-    def __init__(self, bands, optimizer=None, loss='MeanSquaredError', metrics=['RootMeanSquaredError']) -> None:
+    def __init__(self, bands, optimizer=None, loss='MeanSquaredError', metrics=[]) -> None:
         self.bands = bands
         self.optimizer = optimizer if optimizer != None else 'SGD'
         self.metrics = metrics,
@@ -17,13 +17,13 @@ class Unet():
 
         x = tf.keras.layers.Conv2D(n_filters,(3,3),padding='same')(input_tensor)
         x = tf.keras.layers.BatchNormalization()(x)
-        # x = tf.keras.layers.Activation('relu')(x)
-        x = tf.nn.leaky_relu(x, alpha=0.2)
+        x = tf.keras.layers.Activation('relu')(x)
+        #x = tf.nn.leaky_relu(x, alpha=0.2)
 
         x = tf.keras.layers.Conv2D(n_filters,(3,3),padding='same')(x)
         x = tf.keras.layers.BatchNormalization()(x)
-        # x = tf.keras.layers.Activation('relu')(x)
-        x = tf.nn.leaky_relu(x, alpha=0.2)
+        x = tf.keras.layers.Activation('relu')(x)
+        #x = tf.nn.leaky_relu(x, alpha=0.2)
 
         return x
 
@@ -40,18 +40,18 @@ class Unet():
         decoder = tf.keras.layers.Conv2DTranspose(num_filters, kernel_size=(2,2), strides=(2,2), padding='same')(input_tensor)
         decoder = tf.keras.layers.concatenate([concat_tensor, decoder], axis=-1)
         decoder = tf.keras.layers.BatchNormalization()(decoder)
-        # decoder = tf.keras.layers.Activation('relu')(decoder)
-        decoder = tf.nn.leaky_relu(decoder, alpha=0.2)
+        decoder = tf.keras.layers.Activation('relu')(decoder)
+        # decoder = tf.nn.leaky_relu(decoder, alpha=0.2)
 
         decoder = tf.keras.layers.Conv2D(num_filters, (3,3),padding='same')(decoder)
         decoder = tf.keras.layers.BatchNormalization()(decoder)
-        # decoder = tf.keras.layers.Activation('relu')(decoder)
-        decoder = tf.nn.leaky_relu(decoder, alpha=0.2)
+        decoder = tf.keras.layers.Activation('relu')(decoder)
+        # decoder = tf.nn.leaky_relu(decoder, alpha=0.2)
 
         decoder = tf.keras.layers.Conv2D(num_filters, (3,3), padding='same')(decoder)
         decoder = tf.keras.layers.BatchNormalization()(decoder)
-        # decoder = tf.keras.layers.Activation('relu')(decoder)
-        decoder = tf.nn.leaky_relu(decoder, alpha=0.2)
+        decoder = tf.keras.layers.Activation('relu')(decoder)
+        # decoder = tf.nn.leaky_relu(decoder, alpha=0.2)
 
 
         return decoder
@@ -81,8 +81,7 @@ class Unet():
         model.compile(
             optimizer=self.optimizer,
             loss=self.loss,
-            metrics=self.metrics
-            #metrics=[tf.keras.metrics.get(metric) for metric in self.metrics]
+            metrics=self.metrics[0]
         )
 
         return model

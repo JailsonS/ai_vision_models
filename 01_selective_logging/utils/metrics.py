@@ -1,10 +1,6 @@
 
-import numpy as np
 import tensorflow as tf
-import pandas as pd
-
 from tensorflow.keras import backend as  K
-
 
 def running_recall(y_true, y_pred):
     TP = K.sum(K.round(K.clip(y_true * y_pred, 0, 1)))
@@ -34,19 +30,11 @@ def adaptive_maxpool_loss(y_true, y_pred, alpha=0.25):
     return x
 
 def soft_dice_loss(y_pred, y_true, smooth = 1):
-
+    
     y_true_f = K.flatten(y_true)
     y_pred_f = K.flatten(y_pred)
-
+   
     intersection = K.sum(y_true_f * y_pred_f)
     dice = K.abs(2. * intersection + smooth) / (K.abs(K.sum(K.square(y_true_f))) + K.abs(K.sum(K.square(y_pred_f))) + smooth)
-
+    
     return 1-K.mean(dice)
-
-
-
-
-
-
-
-
