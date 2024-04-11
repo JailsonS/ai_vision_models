@@ -16,14 +16,15 @@ class Unet():
     def _convBlock(self, input_tensor, n_filters):
 
         x = tf.keras.layers.Conv2D(n_filters,(3,3),padding='same')(input_tensor)
+        #x = tf.keras.layers.Dropout(0.2)(x)
         x = tf.keras.layers.BatchNormalization()(x)
-        x = tf.keras.layers.Activation('relu')(x)
-        #x = tf.nn.leaky_relu(x, alpha=0.2)
+        x = tf.keras.layers.Activation('leaky_relu')(x)
+
 
         x = tf.keras.layers.Conv2D(n_filters,(3,3),padding='same')(x)
+        #x = tf.keras.layers.Dropout(0.2)(x)
         x = tf.keras.layers.BatchNormalization()(x)
-        x = tf.keras.layers.Activation('relu')(x)
-        #x = tf.nn.leaky_relu(x, alpha=0.2)
+        x = tf.keras.layers.Activation('leaky_relu')(x)
 
         return x
 
@@ -40,18 +41,15 @@ class Unet():
         decoder = tf.keras.layers.Conv2DTranspose(num_filters, kernel_size=(2,2), strides=(2,2), padding='same')(input_tensor)
         decoder = tf.keras.layers.concatenate([concat_tensor, decoder], axis=-1)
         decoder = tf.keras.layers.BatchNormalization()(decoder)
-        decoder = tf.keras.layers.Activation('relu')(decoder)
-        # decoder = tf.nn.leaky_relu(decoder, alpha=0.2)
+        decoder = tf.keras.layers.Activation('leaky_relu')(decoder)
 
         decoder = tf.keras.layers.Conv2D(num_filters, (3,3),padding='same')(decoder)
         decoder = tf.keras.layers.BatchNormalization()(decoder)
-        decoder = tf.keras.layers.Activation('relu')(decoder)
-        # decoder = tf.nn.leaky_relu(decoder, alpha=0.2)
+        decoder = tf.keras.layers.Activation('leaky_relu')(decoder)
 
         decoder = tf.keras.layers.Conv2D(num_filters, (3,3), padding='same')(decoder)
         decoder = tf.keras.layers.BatchNormalization()(decoder)
-        decoder = tf.keras.layers.Activation('relu')(decoder)
-        # decoder = tf.nn.leaky_relu(decoder, alpha=0.2)
+        decoder = tf.keras.layers.Activation('leaky_relu')(decoder)
 
 
         return decoder

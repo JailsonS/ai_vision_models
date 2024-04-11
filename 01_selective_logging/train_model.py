@@ -12,7 +12,7 @@ import tensorflow as tf
 import pandas as pd
 
 from tensorflow.keras import backend as  K
-
+from tensorflow.keras.callbacks import CSVLogger
 
 from utils.metrics import *
 from utils.augmentation import *
@@ -168,6 +168,8 @@ if SAVE_CPKT:
     checkpoint_path = os.path.dirname(PATH_CHECK_POINTS)
     log_dir = "01_selective_logging/model/logs/" + datetime.datetime.now().strftime("%Y%m%d-%H%M%S")
 
+    csv_logger = CSVLogger(f'01_selective_logging/model/{MODEL_NAME}.csv', append=True, separator=';')
+
     cp_callback = tf.keras.callbacks.ModelCheckpoint(
         filepath=PATH_CHECK_POINTS,
         save_best_only=True,
@@ -177,7 +179,7 @@ if SAVE_CPKT:
 
     earlystopper_callback = tf.keras.callbacks.EarlyStopping(
         min_delta = 0,
-        patience = 6,
+        patience = 9,
         verbose = 1,
         restore_best_weights = True
     )
@@ -191,7 +193,7 @@ if SAVE_CPKT:
         steps_per_epoch=TRAIN_STEPS,
         validation_data=dataset_val,
         validation_steps=VAL_STEPS,
-        callbacks=[cp_callback, tensorboard_callback, earlystopper_callback])
+        callbacks=[cp_callback, tensorboard_callback, earlystopper_callback, csv_logger])
 
 else:
     model.fit(
@@ -206,3 +208,5 @@ else:
 '''
 
 model.save(f'01_selective_logging/model/{MODEL_NAME}')
+
+# gs://imazon/mapbiomas/degradation/ai_logging_dataset/logs
