@@ -1,0 +1,12 @@
+earthengine-api
+pandas
+geopandas
+mercantile
+python-dotenv
+retry
+seaborn
+torch
+rasterio
+torchvision
+scikit-learn
+gcloud

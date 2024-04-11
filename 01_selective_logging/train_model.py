@@ -17,6 +17,7 @@ from tensorflow.keras import backend as  K
 
 
 from utils.metrics import *
+from utils.augmentation import *
 from ..models import UnetDefault
 
 
@@ -24,14 +25,16 @@ from ..models import UnetDefault
     Config Info
 '''
 
+# {'train': 369, 'val': 123, 'test': 124}
+
 BANDS = ['ndfi_t0', 'ndfi_t1']
 
 KERNEL_SIZE = 512
 
 NUM_CLASSES = 1
 
-TRAIN_DATASET = 'src/logging/pipeline_a/data/datasets/train_dataset_1.tfrecord'
-VAL_DATASET = 'src/logging/pipeline_a/data/datasets/val_dataset_1.tfrecord'
+TRAIN_DATASET = '01_selective_logging/data'
+VAL_DATASET = '01_selective_logging/data'
 
 # config train variables
 PATH_CHECK_POINTS = 'src/logging/pipeline_a/model/ckpt1/'
@@ -43,12 +46,12 @@ HYPER_PARAMS = {
     'metrics': ['RootMeanSquaredError']
 }
 
-TRAIN_SIZE = 143
-VAL_SIZE = 28
+TRAIN_SIZE = 369
+VAL_SIZE = 123
 
 SAVE_CPKT = True
-EPOCHS = 1
-BATCH_SIZE = 6
+EPOCHS = 25
+BATCH_SIZE = 9
 
 TRAIN_STEPS = int(TRAIN_SIZE / BATCH_SIZE)
 VAL_STEPS = int(VAL_SIZE / BATCH_SIZE)
@@ -177,4 +180,4 @@ else:
     Save Model
 '''
 
-model.save(f'source/01_selective_logging/model/{MODEL_NAME}')
+model.save(f'01_selective_logging/model/{MODEL_NAME}')
