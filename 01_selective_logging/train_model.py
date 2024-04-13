@@ -24,24 +24,30 @@ from models.UnetDefault import Unet
 '''
 
 # {'train': 369, 'val': 123, 'test': 124}
+# {'train':222, 'val':74, 'test':74}
 
+USE_TOTAL_CHANNELS = False
+USE_FACTOR_BRIGHT = True
 BANDS = [
-    'red_t0','green_t0', 'blue_t0',
-    'red_t1','green_t1', 'blue_t1',
-    'ndfi_t0','ndfi_t1'
+    'red_t0','green_t0', 'blue_t0', 'nir_t0', 'swir1_t0',
+    'red_t1','green_t1', 'blue_t1', 'nir_t1', 'swir1_t1'
+    # 'ndfi_t0','ndfi_t1'
 ]
 
-TARGET_BANDS = BANDS[-2:]
+TARGET_BANDS = [
+    0, 1, 2,
+    5, 6, 7
+]
 
 KERNEL_SIZE = 512
 
 NUM_CLASSES = 1
 
-TRAIN_DATASET = '01_selective_logging/data/train_dataset_1.tfrecord'
-VAL_DATASET = '01_selective_logging/data/val_dataset_1.tfrecord'
+TRAIN_DATASET = '01_selective_logging/data/train_dataset_3.tfrecord'
+VAL_DATASET = '01_selective_logging/data/val_dataset_3.tfrecord'
 
 # config train variables
-PATH_CHECK_POINTS = '01_selective_logging/model/ckpt1/checkpoint.model.keras'
+PATH_CHECK_POINTS = '01_selective_logging/model/ckpt4/checkpoint.x'
 
 HYPER_PARAMS = {
     'optimizer': tf.keras.optimizers.Nadam(learning_rate=0.001),
@@ -50,18 +56,19 @@ HYPER_PARAMS = {
     'metrics': ['RootMeanSquaredError']
 }
 
-TRAIN_SIZE = 369
-VAL_SIZE = 123
+TRAIN_SIZE = 222
+#VAL_SIZE = 123
+VAL_SIZE = 74
 
 SAVE_CPKT = True
-EPOCHS = 1
+EPOCHS = 10
 BATCH_SIZE = 9
 
 TRAIN_STEPS = int(TRAIN_SIZE / BATCH_SIZE)
 VAL_STEPS = int(VAL_SIZE / BATCH_SIZE)
 
-MODEL_NAME = 'unet_default_logging_1'
-MODEL_OUTPUT = f'models/{MODEL_NAME}'
+MODEL_NAME = 'unet_default_logging_4_2'
+MODEL_OUTPUT = f'01_selective_logging/model/{MODEL_NAME}'
 
 '''
 
@@ -95,8 +102,38 @@ def replace_nan(data, label):
     data = tf.where(tf.math.is_nan(data), 0., data)
     label = tf.where(tf.math.is_nan(label), 0., label)
 
-    # get only last two channels
-    return data[:,:,-2:], label
+    data_list = []
+    if not USE_TOTAL_CHANNELS:
+        data = tf.stack([data[:,:,x] for x in TARGET_BANDS], axis=2)
+
+   
+
+    return data, label
+
+
+def normalize_channels(data, label):
+    
+    unstacked = tf.unstack(data, axis=2)
+
+    data_norm = []
+
+    for i in unstacked:
+        min_arr = tf.reduce_min(i)
+        max_arr = tf.reduce_max(i)
+
+        tensor = tf.divide(
+            tf.subtract(i, min_arr),
+            tf.subtract(max_arr, min_arr)
+        )
+
+        data_norm.append(tensor)
+
+    data_normalized = tf.stack(data_norm, axis=2)
+    data_normalized = tf.clip_by_value(data_normalized * 1.5, 0, 1) if USE_FACTOR_BRIGHT else data_normalized
+
+    return data_normalized, label
+
+
 
 
 '''
@@ -110,15 +147,13 @@ def replace_nan(data, label):
 
 dataset_train = tf.data.TFRecordDataset([TRAIN_DATASET])\
     .map(read_example)\
-    .map(replace_nan)
+    .map(replace_nan)\
+    .map(normalize_channels)
 
 dataset_val = tf.data.TFRecordDataset([VAL_DATASET])\
     .map(read_example)\
-    .map(replace_nan)
-
-for data, label in dataset_train.take(1):
-    print(data.shape)
-
+    .map(replace_nan)\
+    .map(normalize_channels)
 
 # dataset_train = dataset_train.shuffle(buffer_size=TRAIN_SIZE).repeat().batch(BATCH_SIZE).prefetch(tf.data.AUTOTUNE)
 dataset_train = apply_augmentation(dataset_train).repeat().batch(BATCH_SIZE).prefetch(tf.data.AUTOTUNE)
@@ -135,14 +170,14 @@ dataset_val = dataset_val.batch(1).repeat()
 import datetime, os
 from glob import glob
 
-HYPER_PARAMS['loss'] = tf.keras.losses.Dice()
+HYPER_PARAMS['loss'] = soft_dice_loss
 
 listckpt = glob(PATH_CHECK_POINTS + '*')
 
 model = Unet(
     TARGET_BANDS, 
     optimizer=HYPER_PARAMS['optimizer'], 
-    loss=tf.keras.losses.Dice(), 
+    loss=soft_dice_loss, 
     # metrics=[
     #     tf.keras.metrics.IoU(num_classes=2, target_class_ids=[0]),
     #     tf.keras.metrics.Precision(),
@@ -166,7 +201,7 @@ if len(listckpt) > 0:
 if SAVE_CPKT:
 
     checkpoint_path = os.path.dirname(PATH_CHECK_POINTS)
-    log_dir = "01_selective_logging/model/logs/" + datetime.datetime.now().strftime("%Y%m%d-%H%M%S")
+    log_dir = f"01_selective_logging/model/logs/" + datetime.datetime.now().strftime("%Y%m%d-%H%M%S")
 
     csv_logger = CSVLogger(f'01_selective_logging/model/{MODEL_NAME}.csv', append=True, separator=';')
 
@@ -179,7 +214,7 @@ if SAVE_CPKT:
 
     earlystopper_callback = tf.keras.callbacks.EarlyStopping(
         min_delta = 0,
-        patience = 9,
+        patience = 10,
         verbose = 1,
         restore_best_weights = True
     )
@@ -207,6 +242,4 @@ else:
     Save Model
 '''
 
-model.save(f'01_selective_logging/model/{MODEL_NAME}')
-
-# gs://imazon/mapbiomas/degradation/ai_logging_dataset/logs
+model.save('01_selective_logging/model/model_v4.keras')
