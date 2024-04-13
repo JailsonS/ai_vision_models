@@ -7,9 +7,11 @@ import sys, os
 
 sys.path.append(os.path.abspath('.'))
 
+from pprint import pprint
+
 import numpy as np
 import tensorflow as tf
-import ee, io, rasterio
+import ee, io, rasterio, keras
 import concurrent
 
 from tensorflow.keras import backend as  K
@@ -17,7 +19,7 @@ from tensorflow.keras import backend as  K
 from utils.metrics import *
 from models.UnetDefault import Unet
 
-
+from rasterio.merge import merge
 from numpy.lib.recfunctions import structured_to_unstructured
 from retry import retry
 from glob import glob
@@ -45,22 +47,16 @@ ASSET_TILES = 'projects/mapbiomas-workspace/AUXILIAR/SENTINEL2/grid_sentinel'
 '''
 
 TILES = {
-    '21LXH': []
+    '22MGA': [
+        '20220724T133851_20220724T134243_T22MGA'
+    ]
 }
-
-
-BANDS = [
-    'red_t0','green_t0', 'blue_t0','nir_t0','swir_t0'
-    'red_t1','green_t1', 'blue_t1','nir_t1','swir1_t1'
-]
-
-TARGET_BANDS = [0,1,2,5,6,7]
 
 KERNEL_SIZE = 512
 
 NUM_CLASSES = 1
 
-MODEL_PATH = ''
+MODEL_PATH = '01_selective_logging/model/model_v4.keras'
 
 OUTPUT_CHIPS = '01_selective_logging/predictions/{}/{}_{}.tif'
 OUTPUT_TILE = '01_selective_logging/predictions'
@@ -111,8 +107,21 @@ REQUEST = {
   }
 
 
-BAND_NAMES = ['R', 'G', 'B', 'N']
-NEW_BAND_NAMES = ['red', 'green', 'blue', 'nir']
+BAND_NAMES = [
+    'B2', 'B3', 'B4',
+    #'B8', 'B11'
+]
+
+NEW_BAND_NAMES = [
+    'red','green', 'blue',
+    #'nir','swir1'
+]
+
+BANDS = [
+    'red_t0','green_t0', 'blue_t0',#'nir_t0','swir_t0',
+    'red_t1','green_t1', 'blue_t1',#'nir_t1','swir1_t1'
+]
+
 
 
 '''
@@ -120,6 +129,54 @@ NEW_BAND_NAMES = ['red', 'green', 'blue', 'nir']
     Functions
 
 '''
+
+def normalize_array(array):
+    min_value = np.min(array)
+    max_value = np.max(array)
+    normalized_array = (array - min_value) / (max_value - min_value)
+    return normalized_array
+
+
+def apply_brightness(array):
+    brightness_factor = 1.5
+    # increase brightness by multiplying
+    brightened = np.clip(array * brightness_factor, 0, 1)
+    return brightened
+
+def get_image(items):
+
+    coords = items[1]
+
+    t1_band_names = [x + '_t1' for x in NEW_BAND_NAMES]
+    t0_band_names = [x + '_t0' for x in NEW_BAND_NAMES]
+
+    col = ee.ImageCollection(ASSET_COLLECTION).filter(f'system:index == "{items[0]}"')
+
+    # t1
+    image_t1 = ee.Image(col.first())\
+        .select(BAND_NAMES, NEW_BAND_NAMES).rename(t1_band_names)
+    
+
+    # get relative dates for t0
+    tmp_date = ee.Date(image_t1.get('system:time_start')).advance(-12, 'months')
+    t0 = ee.Date.fromYMD(tmp_date.get('year'), 6, 1)
+    t0_ = ee.Date.fromYMD(tmp_date.get('year'), 10, 30)
+
+
+    col_t0 = ee.ImageCollection(ASSET_COLLECTION)\
+        .filterDate(t0, t0_)\
+        .filterBounds(ee.Geometry.Point(coords))\
+        .filter('CLOUDY_PIXEL_PERCENTAGE < 30')
+    
+    # t0
+    image_t0 = ee.Image(col_t0.median())\
+        .select(BAND_NAMES, NEW_BAND_NAMES).rename(t0_band_names)
+    
+
+    image = image_t0.addBands(image_t1)
+
+    return image
+
 
 def serialize(data: np.ndarray) -> bytes:
     features = {
@@ -146,9 +203,7 @@ def get_patch(items):
     
     coords = items[1]
 
-    image = ee.Image(
-        ee.ImageCollection(ASSET_COLLECTION).filter(f'system_index == "{items[0]}"').first()
-    )
+    image = get_image(items)
 
     request = dict(REQUEST)
     request['expression'] = image
@@ -169,7 +224,6 @@ def get_patch(items):
     
     try:
         data = np.load(io.BytesIO(ee.data.computePixels(request)))
-        print('np', data.shape)
     except ee.ee_exception.EEException as e:
         response['error']= e
         return None, response
@@ -186,12 +240,22 @@ def predict(items):
 
         if data is not None:
 
-            data_transposed = np.transpose(data, (1,2,0))
-            data_transposed = np.expand_dims(data_transposed, axis=0)
+            data = structured_to_unstructured(data)
+
+            # TODO - implements normalization
+
+
+            # data_transposed = np.transpose(data, (1,2,0))
+            data_transposed = np.expand_dims(data, axis=0)
 
             # add exception here
             # for prediction its necessary to have an extra dimension representing the bach
             probabilities = model.predict(data_transposed)[0]
+
+
+            print(f'probabilities {probabilities.shape}')
+
+
             probabilities = np.transpose(probabilities, (2,0,1))
 
             print(f'probabilities {probabilities.shape}')
@@ -224,7 +288,14 @@ def flatten_extend(matrix):
 
 '''
 
-model = tf.keras.models.load_model(MODEL_PATH)
+
+smlayer = tf.keras.layers.TFSMLayer(MODEL_PATH, call_endpoint='serving_default')
+outputs = smlayer(tf.keras.layers.Input(shape=[None, None, len(BANDS)]))
+
+model = tf.keras.Model(inputs=tf.keras.layers.Input(shape=[None, None, len(BANDS)]), outputs=outputs)
+model.compile(optimizer='adam', loss=soft_dice_loss)
+
+# model = keras.saving.load_model(MODEL_PATH)
 
 for k, v in TILES.items():
 
@@ -249,31 +320,32 @@ for k, v in TILES.items():
                 for x in v]
 
     items = flatten_extend(items)
-    
+
+
     # run predictions
     predict(items)
 
     # create mosaic 
-    path_chips = [rasterio.open(x) for x in glob(f'{OUTPUT_TILE}/{k}/*.tif')]
+    # path_chips = [rasterio.open(x) for x in glob(f'{OUTPUT_TILE}/{k}/*')]
 
-    mosaic, out_trans = rasterio.merge(path_chips)
+    # mosaic, out_trans = merge(path_chips)
 
-    with rasterio.open(
-        f'{OUTPUT_TILE}/{k}_pred.tif',
-        'w',
-        driver = 'GTiff',
-        count = NUM_CLASSES,
-        height = mosaic.shape[1],
-        width  = mosaic.shape[2],
-        dtype  = mosaic.dtype,
-        crs    = rasterio.crs.CRS.from_epsg(4326),
-        transform = out_trans 
-    ) as dest:
-        dest.write(mosaic)
-
-    # delete files
-    for f in glob(f'{OUTPUT_TILE}/{k}/*.tif'):
-        os.remove(f)
+    #with rasterio.open(
+    #    f'{OUTPUT_TILE}/{k}_pred.tif',
+    #    'w',
+    #    driver = 'GTiff',
+    #    count = NUM_CLASSES,
+    #    height = mosaic.shape[1],
+    #    width  = mosaic.shape[2],
+    #    dtype  = mosaic.dtype,
+    #    crs    = rasterio.crs.CRS.from_epsg(4326),
+    #    transform = out_trans 
+    #) as dest:
+    #    dest.write(mosaic)
+#
+    ## delete files
+    #for f in glob(f'{OUTPUT_TILE}/{k}/*.tif'):
+    #    os.remove(f)
 
 
 
