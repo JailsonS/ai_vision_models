@@ -246,13 +246,10 @@ def predict(items):
             data = structured_to_unstructured(data)
 
             data_norma = np.stack([normalize_array(data[:,:,x]) for x in range(0, len(BANDS))])
+
+
             if APPLY_BRIGHT: 
                 data_norma = apply_brightness(data_norma)
-
-            
-
-            
-
 
             data_transposed = np.transpose(data_norma, (1,2,0))
             data_transposed = np.expand_dims(data_transposed, axis=0)
