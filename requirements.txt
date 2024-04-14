@@ -6,4 +6,4 @@ seaborn
 rasterio
 scikit-learn
 gcloud
-tensorflow
+tensorflow==2.14.0

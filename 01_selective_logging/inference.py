@@ -24,8 +24,9 @@ from numpy.lib.recfunctions import structured_to_unstructured
 from retry import retry
 from glob import glob
 
-ee.Initialize(opt_url='https://earthengine-highvolume.googleapis.com', project='sad-deep-learning-274812')
+os.environ['TF_CPP_MIN_LOG_LEVEL'] = '3'
 
+ee.Initialize(opt_url='https://earthengine-highvolume.googleapis.com', project='sad-deep-learning-274812')
 
 
 '''
@@ -45,6 +46,8 @@ ASSET_TILES = 'projects/mapbiomas-workspace/AUXILIAR/SENTINEL2/grid_sentinel'
 '''
     Config Info
 '''
+
+APPLY_BRIGHT = True
 
 TILES = {
     '22MGA': [
@@ -145,12 +148,12 @@ def apply_brightness(array):
 
 def get_image(items):
 
-    coords = items[1]
+    coords = items[1][1]
 
     t1_band_names = [x + '_t1' for x in NEW_BAND_NAMES]
     t0_band_names = [x + '_t0' for x in NEW_BAND_NAMES]
 
-    col = ee.ImageCollection(ASSET_COLLECTION).filter(f'system:index == "{items[0]}"')
+    col = ee.ImageCollection(ASSET_COLLECTION).filter(f'system:index == "{items[1][0]}"')
 
     # t1
     image_t1 = ee.Image(col.first())\
@@ -201,7 +204,7 @@ def get_patch(items):
 
     response = {'error': '', 'item':items}
     
-    coords = items[1]
+    coords = items[1][1]
 
     image = get_image(items)
 
@@ -227,7 +230,7 @@ def get_patch(items):
     except ee.ee_exception.EEException as e:
         response['error']= e
         return None, response
-    return data, response
+    return data, response, items[0]
 
 
 def predict(items):
@@ -236,32 +239,44 @@ def predict(items):
 
     for future in concurrent.futures.as_completed(future_to_point):
         
-        data, response = future.result()
+        data, response, idx = future.result()
 
         if data is not None:
 
             data = structured_to_unstructured(data)
 
-            # TODO - implements normalization
+            data_norma = np.stack([normalize_array(data[:,:,x]) for x in range(0, len(BANDS))])
+            if APPLY_BRIGHT: 
+                data_norma = apply_brightness(data_norma)
+
+            
+
+            
 
 
-            # data_transposed = np.transpose(data, (1,2,0))
-            data_transposed = np.expand_dims(data, axis=0)
+            data_transposed = np.transpose(data_norma, (1,2,0))
+            data_transposed = np.expand_dims(data_transposed, axis=0)
+
 
             # add exception here
             # for prediction its necessary to have an extra dimension representing the bach
-            probabilities = model.predict(data_transposed)[0]
+            probabilities = model.predict(data_transposed)
 
 
-            print(f'probabilities {probabilities.shape}')
+            # it only checks the supposed prediction and skip it if there is no logging
+            prediction = np.copy(probabilities)
+            prediction[prediction < 0.01] = 0
+            prediction[prediction >= 0.01] = 1
+
+            if np.max(prediction[0]) == 0.0:
+                continue
 
 
+            probabilities = probabilities[0]
             probabilities = np.transpose(probabilities, (2,0,1))
 
-            print(f'probabilities {probabilities.shape}')
-
             with rasterio.open(
-                OUTPUT_CHIPS.format(k, response['item'][0]),
+                OUTPUT_CHIPS.format(k, response['item'][1][0], idx),
                 'w',
                 driver = 'GTiff',
                 count = NUM_CLASSES,
@@ -269,7 +284,10 @@ def predict(items):
                 width  = probabilities.shape[2],
                 dtype  = probabilities.dtype,
                 crs    = rasterio.crs.CRS.from_epsg(4326),
-                transform = response['affine']  
+                transform=rasterio.transform.from_origin(response['item'][1][1][0] + OFFSET_X,
+                                                         response['item'][1][1][1] + OFFSET_Y,
+                                                         SCALE_X,
+                                                         SCALE_Y)
             ) as output:
                 output.write(probabilities)
 
@@ -289,15 +307,30 @@ def flatten_extend(matrix):
 '''
 
 
-smlayer = tf.keras.layers.TFSMLayer(MODEL_PATH, call_endpoint='serving_default')
-outputs = smlayer(tf.keras.layers.Input(shape=[None, None, len(BANDS)]))
+#outputs = smlayer(tf.keras.layers.Input(shape=[None, None, len(BANDS)]))
 
-model = tf.keras.Model(inputs=tf.keras.layers.Input(shape=[None, None, len(BANDS)]), outputs=outputs)
-model.compile(optimizer='adam', loss=soft_dice_loss)
+#model = tf.keras.Model(inputs=tf.keras.layers.Input(shape=[None, None, len(BANDS)]), outputs=outputs)
+#model.compile(optimizer='adam', loss=soft_dice_loss)
 
-# model = keras.saving.load_model(MODEL_PATH)
+
+model = keras.saving.load_model(MODEL_PATH, compile=False)
+
+
+
+model.compile(
+    optimizer=tf.keras.optimizers.Nadam(learning_rate=0.001), 
+    loss=soft_dice_loss, 
+    metrics=[
+        running_recall, 
+        running_f1, 
+        running_precision, 
+        tf.keras.metrics.IoU(num_classes=2, target_class_ids=[1])]
+)
 
 for k, v in TILES.items():
+
+    if not os.path.isdir(f'01_selective_logging/predictions/{k}'):
+        os.mkdir(os.path.abspath(f'01_selective_logging/predictions/{k}'))
 
 
     grid = ee.FeatureCollection(ASSET_TILES).filter(f'NAME == "{k}"')
@@ -311,6 +344,7 @@ for k, v in TILES.items():
     coords = [x['coordinates'] for x in coords]
 
 
+
     # if not specified get all scenes from grid
     if len(v) == 0:
         col = ee.ImageCollection(ASSET_COLLECTION).filter(f'MGRS_TILE == "{k}"')
@@ -320,6 +354,8 @@ for k, v in TILES.items():
                 for x in v]
 
     items = flatten_extend(items)
+
+    items = enumerate(items)
 
 
     # run predictions

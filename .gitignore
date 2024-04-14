@@ -4,3 +4,4 @@ models/__pycache__
 01_selective_logging/utils/__pycache__
 01_selective_logging/model
 01_selective_logging/notebooks
+01_selective_logging/predictions
