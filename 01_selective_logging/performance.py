@@ -30,8 +30,9 @@ from matplotlib.gridspec import GridSpec
 # {'train': 369, 'val': 123, 'test': 124}
 # {'train':222, 'val':74, 'test':74}
 
+REPLACE_ZEROS = True
 USE_TOTAL_CHANNELS = False
-USE_FACTOR_BRIGHT = True
+USE_FACTOR_BRIGHT = False
 BANDS = [
     'red_t0','green_t0', 'blue_t0', 'nir_t0', 'swir1_t0',
     'red_t1','green_t1', 'blue_t1', 'nir_t1', 'swir1_t1'
@@ -46,12 +47,12 @@ KERNEL_SIZE = 512
 
 NUM_CLASSES = 1
 
-TEST_DATASET = '01_selective_logging/data/test_dataset_3.tfrecord'
+TEST_DATASET = '01_selective_logging/data/test_dataset_4.tfrecord'
 
 
 BATCH_SIZE = 9
 
-MODEL_NAME = 'model_v4.keras'
+MODEL_NAME = 'model_v5.keras'
 MODEL_OUTPUT = f'01_selective_logging/model/{MODEL_NAME}'
 
 '''
@@ -83,10 +84,15 @@ def read_example(serialized: bytes) -> tuple[tf.Tensor, tf.Tensor]:
 
 
 def replace_nan(data, label):
+
+    if REPLACE_ZEROS:
+        label_temp = tf.add(label, 1)
+        label = tf.where(tf.equal(label_temp, 2.0), 0.0, label_temp)
+
+
     data = tf.where(tf.math.is_nan(data), 0., data)
     label = tf.where(tf.math.is_nan(label), 0., label)
 
-    data_list = []
     if not USE_TOTAL_CHANNELS:
         data = tf.stack([data[:,:,x] for x in TARGET_BANDS], axis=2)
 
@@ -149,6 +155,7 @@ model.compile(
     optimizer=tf.keras.optimizers.Nadam(learning_rate=0.001), 
     loss=soft_dice_loss, 
     metrics=[
+        'accuracy',
         running_recall, 
         running_f1, 
         running_precision, 
@@ -156,6 +163,7 @@ model.compile(
 )
 
 # model.evaluate(dataset_test.batch(9))
+# loss: 0.1580 - accuracy: 0.9970 - running_recall: 0.9031 - running_f1: 0.8097 - running_precision: 0.7370 - io_u: 0.4177
 
 font = {
     'family': 'serif',
@@ -187,9 +195,14 @@ for i in range(1, 70):
         b_t0 = data[:, :, 2]
 
 
+
+
+
         rgb = np.stack([r,g,b], 2)
         rgb_t0 = np.stack([r_t0, g_t0, b_t0], 2)
 
+        rgb = tf.clip_by_value(rgb * 1.5, 0, 1)
+        rgb_t0 = tf.clip_by_value(rgb_t0 * 1.5, 0, 1)
 
         ax1.imshow(rgb_t0)
         ax2.imshow(rgb)
@@ -203,8 +216,11 @@ for i in range(1, 70):
 
     probabilities = model.predict(dataset_test.skip(i).take(1).batch(1))
 
-    probabilities[probabilities < 0.01] = 0
-    probabilities[probabilities >= 0.01] = 1
+    print(np.median(probabilities[0]))
+
+
+    probabilities[probabilities < 0.5] = 0
+    probabilities[probabilities >= 0.5] = 1
 
     probabilities = probabilities[0]
 

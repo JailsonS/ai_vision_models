@@ -25,9 +25,9 @@ from models.UnetDefault import Unet
 
 # {'train': 369, 'val': 123, 'test': 124}
 # {'train':222, 'val':74, 'test':74}
-
+REPLACE_ZEROS = True
 USE_TOTAL_CHANNELS = False
-USE_FACTOR_BRIGHT = True
+USE_FACTOR_BRIGHT = False
 BANDS = [
     'red_t0','green_t0', 'blue_t0', 'nir_t0', 'swir1_t0',
     'red_t1','green_t1', 'blue_t1', 'nir_t1', 'swir1_t1'
@@ -99,6 +99,11 @@ def read_example(serialized: bytes) -> tuple[tf.Tensor, tf.Tensor]:
 
 
 def replace_nan(data, label):
+
+    if REPLACE_ZEROS:
+        label_temp = tf.add(label, 1)
+        label = tf.where(tf.equal(label_temp, 2.0), 0.0, label_temp)
+
     data = tf.where(tf.math.is_nan(data), 0., data)
     label = tf.where(tf.math.is_nan(label), 0., label)
 

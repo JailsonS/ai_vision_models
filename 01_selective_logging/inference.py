@@ -47,7 +47,7 @@ ASSET_TILES = 'projects/mapbiomas-workspace/AUXILIAR/SENTINEL2/grid_sentinel'
     Config Info
 '''
 
-APPLY_BRIGHT = True
+APPLY_BRIGHT = False
 
 TILES = {
     '22MGA': [
@@ -59,7 +59,7 @@ KERNEL_SIZE = 512
 
 NUM_CLASSES = 1
 
-MODEL_PATH = '01_selective_logging/model/model_v4.keras'
+MODEL_PATH = '01_selective_logging/model/model_v5.keras'
 
 OUTPUT_CHIPS = '01_selective_logging/predictions/{}/{}_{}.tif'
 OUTPUT_TILE = '01_selective_logging/predictions'
@@ -262,31 +262,34 @@ def predict(items):
 
             # it only checks the supposed prediction and skip it if there is no logging
             prediction = np.copy(probabilities)
-            prediction[prediction < 0.01] = 0
-            prediction[prediction >= 0.01] = 1
+            prediction[prediction < 0.5] = 0
+            prediction[prediction >= 0.5] = 1
 
             if np.max(prediction[0]) == 0.0:
                 continue
 
 
-            probabilities = probabilities[0]
-            probabilities = np.transpose(probabilities, (2,0,1))
+            # probabilities = probabilities[0]
+            # probabilities = np.transpose(probabilities, (2,0,1))
+
+            prediction = prediction[0]
+            prediction = np.transpose(prediction, (2,0,1))
 
             with rasterio.open(
                 OUTPUT_CHIPS.format(k, response['item'][1][0], idx),
                 'w',
                 driver = 'GTiff',
                 count = NUM_CLASSES,
-                height = probabilities.shape[1],
-                width  = probabilities.shape[2],
-                dtype  = probabilities.dtype,
+                height = prediction.shape[1],
+                width  = prediction.shape[2],
+                dtype  = prediction.dtype,
                 crs    = rasterio.crs.CRS.from_epsg(4326),
                 transform=rasterio.transform.from_origin(response['item'][1][1][0] + OFFSET_X,
                                                          response['item'][1][1][1] + OFFSET_Y,
                                                          SCALE_X,
                                                          SCALE_Y)
             ) as output:
-                output.write(probabilities)
+                output.write(prediction)
 
 
 

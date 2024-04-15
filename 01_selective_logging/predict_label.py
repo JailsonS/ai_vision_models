@@ -7,21 +7,22 @@ import sys, os
 
 sys.path.append(os.path.abspath('.'))
 
-import tensorflow.keras.preprocessing as prep
 import numpy as np
 import tensorflow as tf
 import pandas as pd
 import keras
+import numpy as np
+import rasterio, concurrent
 
 from tensorflow.keras import backend as  K
-from tensorflow.keras.callbacks import CSVLogger
 
 from utils.metrics import *
 from utils.augmentation import *
 from models.UnetDefault import Unet
 
-from matplotlib import pyplot as plt
-from matplotlib.gridspec import GridSpec
+from glob import glob
+from retry import retry
+
 
 '''
     Config Info
@@ -30,37 +31,60 @@ from matplotlib.gridspec import GridSpec
 # {'train': 369, 'val': 123, 'test': 124}
 # {'train':222, 'val':74, 'test':74}
 
+EXECUTOR = concurrent.futures.ThreadPoolExecutor(max_workers=4)
+
 USE_TOTAL_CHANNELS = True
-USE_FACTOR_BRIGHT = False
+USE_FACTOR_BRIGHT = True
+USE_CLOUD_DATASET = True
+
 BANDS = [
-    'red_t0','green_t0', 'blue_t0', 'nir_t0', 'swir1_t0',
-    'red_t1','green_t1', 'blue_t1', 'nir_t1', 'swir1_t1'
+    'red_t0',
+    'green_t0',
+    'blue_t0',
+    'nir_t0',
+    'swir1_t0',
+    
+    'gv_t0',
+    'npv_t0',
+    'soil_t0',
+    'shade_t0',
+    'cloud_t0',
+    
+    'red_t1',
+    'green_t1',
+    'blue_t1',
+    'nir_t1',
+    'swir1_t1',
+    
+    'gv_t1',
+    'npv_t1',
+    'soil_t1',
+    'shade_t1',
+    'cloud_t1',
+    
+    'ndfi_t0',
+    'ndfi_t1',
+    #'pre_label'
 ]
 
 TARGET_BANDS = [
     0, 1, 2,
-    5, 6, 7
+    10, 11, 12
 ]
 
 KERNEL_SIZE = 512
 
 NUM_CLASSES = 1
 
-TEST_DATASET = '01_selective_logging/data/test_dataset_3.tfrecord'
-TRAIN_DATASET = '01_selective_logging/data/train_dataset_3.tfrecord'
-VAL_DATASET = '01_selective_logging/data/val_dataset_3.tfrecord'
-
+# root increment version
+PATH_DATASET = '01_selective_logging/data/logging_v1'
+OUTPUT_DATASET = '01_selective_logging/data/logging_v2/{}'
 
 BATCH_SIZE = 9
 
 MODEL_NAME = 'model_v4.keras'
 MODEL_OUTPUT = f'01_selective_logging/model/{MODEL_NAME}'
 
-
-
-FILENAME_TRAIN = '01_selective_logging/data/train_dataset_4.tfrecord'
-FILENAME_TEST = '01_selective_logging/data/test_dataset_4.tfrecord'
-FILENAME_VAL = '01_selective_logging/data/val_dataset_4.tfrecord'
 
 '''
 
@@ -135,29 +159,86 @@ def serialize(inputs: np.ndarray, labels: np.ndarray) -> bytes:
     return example.SerializeToString()
 
 
-'''
 
-    Input Data
+@retry()
+def get_patch(path):
 
-'''
+    """Get a patch centered on the coordinates, as a numpy array."""
+
+    id = path.split('/')[-1]
+
+    np_image = rasterio.open(path)
+
+
+    # [c, w, h]
+    image = np_image.read()
+
+
+    # [w, h, c]
+    image = tf.transpose(image, [1,2,0])
+
+
+    # resize image
+    image = tf.image.resize(image, size=(KERNEL_SIZE, KERNEL_SIZE))
+
+    input = image[:, :, :-1]
+    label = image[:, :, -1:]
 
 
 
+    # replace zeros and ones
+    label_temp = tf.add(label, 1)
+    label = tf.where(tf.equal(label_temp, 2.0), 0.0, label_temp)
 
-dataset_test = tf.data.TFRecordDataset([TEST_DATASET])\
-    .map(read_example)\
-    .map(replace_nan)\
-    #.map(normalize_channels)
+    # convert to int
+    label = tf.cast(label, tf.int64)
 
-dataset_train = tf.data.TFRecordDataset([TRAIN_DATASET])\
-    .map(read_example)\
-    .map(replace_nan)\
-    #.map(normalize_channels)
+    return input, label, id, np_image.meta
 
-dataset_val = tf.data.TFRecordDataset([VAL_DATASET])\
-    .map(read_example)\
-    .map(replace_nan)\
-    #.map(normalize_channels)
+
+
+def write_dataset(enum_items):
+    """"Write patches at the sample points into a TFRecord file."""
+
+    future_to_point = {EXECUTOR.submit(get_patch, path): path for path in enum_items}
+
+    for future in concurrent.futures.as_completed(future_to_point):
+        input, _, id, metadata = future.result()
+
+        input_data = np.stack([input[:, :, x] for x in TARGET_BANDS], 2)
+        input_data, _ = normalize_channels(input_data)
+        input_data = tf.expand_dims(input_data, axis=0)
+
+        metadata['height'] = KERNEL_SIZE
+        metadata['width'] = KERNEL_SIZE
+
+        probabilities = model.predict(input_data)
+        probabilities[probabilities < 0.01] = 0
+        probabilities[probabilities >= 0.01] = 1
+
+        output = probabilities[0]
+
+        new_sample = tf.unstack(input, axis=2)
+        new_sample.append(output[:,:,0])
+        new_sample = np.stack(new_sample, axis=2)
+
+        new_sample = np.transpose(new_sample, (2,0,1))
+
+        with rasterio.open(
+            OUTPUT_DATASET.format(id),
+            'w',
+            driver = 'GTiff',
+            count = 23,
+            height = KERNEL_SIZE,
+            width  = KERNEL_SIZE,
+            dtype  = metadata['dtype'],
+            crs    = rasterio.crs.CRS.from_epsg(4326),
+            transform=metadata['transform']
+        ) as output:
+            output.write(new_sample)
+
+
+
 
 
 '''
@@ -182,94 +263,13 @@ model.compile(
 
 # model.evaluate(dataset_test.batch(9))
 
-font = {
-    'family': 'serif',
-    'color':  'black',
-    'weight': 'normal',
-    'size': 10,
-}
-
-'''
-# optionally compress files.
-writer = tf.io.TFRecordWriter(FILENAME_TRAIN)
-
-for data, label in dataset_train:
-
-    data_for = tf.stack([data[:,:,x] for x in TARGET_BANDS], axis=2)
-    data_for, _ = normalize_channels(data_for)
-
-    input_data = tf.expand_dims(data_for, axis=0)
-
-    
-    probabilities = model.predict(input_data)
-    probabilities[probabilities < 0.01] = 0
-    probabilities[probabilities >= 0.01] = 1
-    output = probabilities[0]
-
-    output = tf.cast(output, tf.int64)
-
-
-    serialized = serialize(data, output)
-
-    writer.write(serialized)
-    writer.flush()
-
-
-writer.close()
 
 '''
 
-# optionally compress files.
-writer = tf.io.TFRecordWriter(FILENAME_TEST)
+    Pred Data
 
-for data, label in dataset_test:
+'''
 
-    data_for = tf.stack([data[:,:,x] for x in TARGET_BANDS], axis=2)
-    data_for, _ = normalize_channels(data_for)
+list_path = list(glob(PATH_DATASET + '/*'))
 
-    input_data = tf.expand_dims(data_for, axis=0)
-    
-    probabilities = model.predict(input_data)
-    probabilities[probabilities < 0.01] = 0
-    probabilities[probabilities >= 0.01] = 1
-    output = probabilities[0]
-
-    output = tf.cast(output, tf.int64)
-
-    serialized = serialize(data, output)
-
-    writer.write(serialized)
-    writer.flush()
-
-writer.close()
-
-
-
-
-
-
-
-
-# optionally compress files.
-writer = tf.io.TFRecordWriter(FILENAME_VAL)
-
-for data, label in dataset_val:
-
-    data_for = tf.stack([data[:,:,x] for x in TARGET_BANDS], axis=2)
-    data_for, _ = normalize_channels(data_for)
-
-    input_data = tf.expand_dims(data_for, axis=0)
-    
-    probabilities = model.predict(input_data)
-    probabilities[probabilities < 0.01] = 0
-    probabilities[probabilities >= 0.01] = 1
-    output = probabilities[0]
-
-    output = tf.cast(output, tf.int64)
-
-    serialized = serialize(data, output)
-
-    writer.write(serialized)
-    writer.flush()
-
-writer.close()
+write_dataset(list_path)

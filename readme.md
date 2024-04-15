@@ -9,6 +9,11 @@ To evaluate the best model performance we test different hyperparams for each mo
 - enhanced brighted - 1.5
 - dataset v3
 
+## Model v5
+- channels: [R, G, B] both t0 and t1
+- normalized dataset between 0 - 1
+- dataset v4
+
 ## Dataset v3
 - channels: ['red','green', 'blue', 'nir', 'swir1'] both t0 and t1
 
