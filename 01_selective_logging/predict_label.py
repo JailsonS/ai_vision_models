@@ -237,6 +237,8 @@ def write_dataset(enum_items):
         ) as output:
             output.write(new_sample)
 
+        
+
 
 
 
@@ -271,5 +273,7 @@ model.compile(
 '''
 
 list_path = list(glob(PATH_DATASET + '/*'))
+
+# list_loaded = list(glob(OUTPUT_DATASET.format('*')))
 
 write_dataset(list_path)

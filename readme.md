@@ -14,9 +14,15 @@ To evaluate the best model performance we test different hyperparams for each mo
 - normalized dataset between 0 - 1
 - dataset v4
 
+
+
 ## Dataset v3
 - channels: ['red','green', 'blue', 'nir', 'swir1'] both t0 and t1
 
 ## Dataset v4
 - channels: ['red','green', 'blue', 'nir', 'swir1'] both t0 and t1
+- label refined with IA
+
+## Dataset v5
+- channels: ['gv','npv', 'soil', 'shade', 'cloud', 'ndfi'] both t0 and t1
 - label refined with IA
