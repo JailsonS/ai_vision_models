@@ -34,6 +34,17 @@ To evaluate the best model performance we test different hyperparams for each mo
     - io_u: 0.0000e+00
 
 
+## Model v7
+- channels: [R, G, B, NIR, SWIR1] both t0 and t1
+- normalized dataset between 0 - 1
+- dataset v4
+- performance: 
+    - loss: 
+    - accuracy:  
+    - running_recall:  
+    - running_f1:  
+    - running_precision: 
+    - io_u: 
 
 
 ## Dataset v3
