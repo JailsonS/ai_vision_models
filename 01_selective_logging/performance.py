@@ -30,29 +30,41 @@ from matplotlib.gridspec import GridSpec
 # {'train': 369, 'val': 123, 'test': 124}
 # {'train':222, 'val':74, 'test':74}
 
-REPLACE_ZEROS = True
+REPLACE_ZEROS = False
 USE_TOTAL_CHANNELS = False
 USE_FACTOR_BRIGHT = False
+
 BANDS = [
-    'red_t0','green_t0', 'blue_t0', 'nir_t0', 'swir1_t0',
-    'red_t1','green_t1', 'blue_t1', 'nir_t1', 'swir1_t1'
+    'gv_t0',
+    'npv_t0',
+    'soil_t0',
+    'shade_t0',
+    'cloud_t0',
+
+    'gv_t1',
+    'npv_t1',
+    'soil_t1',
+    'shade_t1',
+    'cloud_t1',
+
+    'ndfi_t0',
+    'ndfi_t1',
 ]
 
 TARGET_BANDS = [
-    0, 1, 2,
-    5, 6, 7
+    10, 11
 ]
 
 KERNEL_SIZE = 512
 
 NUM_CLASSES = 1
 
-TEST_DATASET = '01_selective_logging/data/test_dataset_4.tfrecord'
+TEST_DATASET = '01_selective_logging/data/test_dataset_5.tfrecord'
 
 
 BATCH_SIZE = 9
 
-MODEL_NAME = 'model_v5.keras'
+MODEL_NAME = 'model_v6.keras'
 MODEL_OUTPUT = f'01_selective_logging/model/{MODEL_NAME}'
 
 '''
@@ -137,8 +149,8 @@ def normalize_channels(data, label):
 
 dataset_test = tf.data.TFRecordDataset([TEST_DATASET])\
     .map(read_example)\
-    .map(replace_nan)\
-    .map(normalize_channels)
+    .map(replace_nan)
+    #.map(normalize_channels)
 
 
 '''
@@ -163,7 +175,10 @@ model.compile(
 )
 
 # model.evaluate(dataset_test.batch(9))
+
 # loss: 0.1580 - accuracy: 0.9970 - running_recall: 0.9031 - running_f1: 0.8097 - running_precision: 0.7370 - io_u: 0.4177
+# loss: 0.9927 - accuracy: 0.9927 - running_recall: 0.0000e+00 - running_f1: 0.0000e+00 - running_precision: 0.0000e+00 - io_u: 0.0000e+00
+
 
 font = {
     'family': 'serif',
@@ -177,57 +192,49 @@ for i in range(1, 70):
     for data, label in dataset_test.skip(i).take(1):
 
         fig = plt.figure(figsize=(15,15))
-        gs = GridSpec(1, 4, figure=fig)
+        gs = GridSpec(1, 3, figure=fig)
 
         ax1 = fig.add_subplot(gs[0, 0])
         ax2 = fig.add_subplot(gs[0, 1])
         ax3 = fig.add_subplot(gs[0, 2])
-        ax4 = fig.add_subplot(gs[0, 3])
+        # ax4 = fig.add_subplot(gs[0, 3])
+
+        print(data.shape)
 
 
         # (tensor - )
-        r = data[:, :, 3]
-        g = data[:, :, 4]
-        b = data[:, :, 5]
-
-        r_t0 = data[:, :, 0]
-        g_t0 = data[:, :, 1]
-        b_t0 = data[:, :, 2]
-
-
+        r = data[:, :, 0]
+        g = data[:, :, 1]
+        b = data[:, :, 1]
 
 
 
         rgb = np.stack([r,g,b], 2)
-        rgb_t0 = np.stack([r_t0, g_t0, b_t0], 2)
 
-        rgb = tf.clip_by_value(rgb * 1.5, 0, 1)
-        rgb_t0 = tf.clip_by_value(rgb_t0 * 1.5, 0, 1)
+        # rgb = tf.clip_by_value(rgb * 1.5, 0, 1)
+        # rgb_t0 = tf.clip_by_value(rgb_t0 * 1.5, 0, 1)
 
-        ax1.imshow(rgb_t0)
-        ax2.imshow(rgb)
-        ax3.imshow(label.numpy(), cmap='gray')
+        ax1.imshow(rgb)
+        ax2.imshow(label.numpy(), cmap='gray')
 
-        ax1.set_title("(a) - rgb t0", fontdict=font)
-        ax2.set_title("(b) - rgb t1", fontdict=font)
-        ax3.set_title("(c) - label", fontdict=font)
+        ax1.set_title("(a) - ndfi temporal", fontdict=font)
+        ax2.set_title("(b) - label", fontdict=font)
+        #ax3.set_title("(c) - label", fontdict=font)
 
         
 
     probabilities = model.predict(dataset_test.skip(i).take(1).batch(1))
 
-    print(np.median(probabilities[0]))
 
-
-    probabilities[probabilities < 0.5] = 0
-    probabilities[probabilities >= 0.5] = 1
-
+    probabilities[probabilities < 0.0199] = 0
+    probabilities[probabilities >= 0.0199] = 1
     probabilities = probabilities[0]
 
-    print(probabilities[0].shape)
+    # probabilities = probabilities[0].argmax(axis=-1).astype(np.uint8)
+    # probabilities = np.expand_dims(probabilities, axis=2)
 
-    ax4.imshow(prep.image.array_to_img(probabilities))
-    ax4.set_title("(d)", fontdict=font)
+    ax3.imshow(prep.image.array_to_img(probabilities))
+    ax3.set_title("(c) - predict", fontdict=font)
 
     plt.savefig(f'01_selective_logging/predictions/{i}.png')
     

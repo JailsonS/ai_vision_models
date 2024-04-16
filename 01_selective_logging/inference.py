@@ -17,12 +17,14 @@ import concurrent
 from tensorflow.keras import backend as  K
 
 from utils.metrics import *
+from utils.index import *
 from models.UnetDefault import Unet
 
 from rasterio.merge import merge
 from numpy.lib.recfunctions import structured_to_unstructured
 from retry import retry
 from glob import glob
+from pprint import pprint
 
 os.environ['TF_CPP_MIN_LOG_LEVEL'] = '3'
 
@@ -47,6 +49,7 @@ ASSET_TILES = 'projects/mapbiomas-workspace/AUXILIAR/SENTINEL2/grid_sentinel'
     Config Info
 '''
 
+ADD_NDFI = True
 APPLY_BRIGHT = False
 
 TILES = {
@@ -111,18 +114,21 @@ REQUEST = {
 
 
 BAND_NAMES = [
-    'B2', 'B3', 'B4',
-    #'B8', 'B11'
+    'B2', 'B3', 'B4', 'B8', 'B11', 'B12'
 ]
 
 NEW_BAND_NAMES = [
-    'red','green', 'blue',
-    #'nir','swir1'
+    'red','green', 'blue', 'nir','swir1', 'swir2'
 ]
 
-BANDS = [
-    'red_t0','green_t0', 'blue_t0',#'nir_t0','swir_t0',
-    'red_t1','green_t1', 'blue_t1',#'nir_t1','swir1_t1'
+FEATURES = [
+    'red_t0','green_t0', 'blue_t0', 'ndfi_t0',
+    'red_t1','green_t1', 'blue_t1', 'ndfi_t1'
+]
+
+FEATURES_INDEX = [
+    0, 1, 2,
+    4, 5, 6
 ]
 
 
@@ -146,19 +152,32 @@ def apply_brightness(array):
     brightened = np.clip(array * brightness_factor, 0, 1)
     return brightened
 
+
 def get_image(items):
 
     coords = items[1][1]
 
-    t1_band_names = [x + '_t1' for x in NEW_BAND_NAMES]
-    t0_band_names = [x + '_t0' for x in NEW_BAND_NAMES]
+    if ADD_NDFI:
+        t1_band_names = [x + '_t1' for x in NEW_BAND_NAMES + ['ndfi']]
+        t0_band_names = [x + '_t0' for x in NEW_BAND_NAMES + ['ndfi']]
+    else:
+        t1_band_names = [x + '_t1' for x in NEW_BAND_NAMES]
+        t0_band_names = [x + '_t0' for x in NEW_BAND_NAMES]
+
 
     col = ee.ImageCollection(ASSET_COLLECTION).filter(f'system:index == "{items[1][0]}"')
 
     # t1
-    image_t1 = ee.Image(col.first())\
-        .select(BAND_NAMES, NEW_BAND_NAMES).rename(t1_band_names)
+    image_t1 = ee.Image(col.first()).select(BAND_NAMES, NEW_BAND_NAMES)
     
+
+
+    if ADD_NDFI:
+        image_t1 = get_fractions(image_t1)
+        image_t1 = get_ndfi(image_t1)
+        image_t1 = ee.Image(image_t1).select(NEW_BAND_NAMES + ['ndfi'])
+
+    image_t1 = image_t1.rename(t1_band_names)
 
     # get relative dates for t0
     tmp_date = ee.Date(image_t1.get('system:time_start')).advance(-12, 'months')
@@ -172,11 +191,17 @@ def get_image(items):
         .filter('CLOUDY_PIXEL_PERCENTAGE < 30')
     
     # t0
-    image_t0 = ee.Image(col_t0.median())\
-        .select(BAND_NAMES, NEW_BAND_NAMES).rename(t0_band_names)
+    image_t0 = ee.Image(col_t0.median()).select(BAND_NAMES, NEW_BAND_NAMES)
     
+    
+    if ADD_NDFI:
+        image_t0 = get_fractions(image_t0)
+        image_t0 = get_ndfi(image_t0)
+        image_t0 = ee.Image(image_t0).select(NEW_BAND_NAMES + ['ndfi'])
+        
+    image_t0 = image_t0.rename(t0_band_names)
 
-    image = image_t0.addBands(image_t1)
+    image = image_t0.addBands(image_t1).select(FEATURES)
 
     return image
 
@@ -229,7 +254,8 @@ def get_patch(items):
         data = np.load(io.BytesIO(ee.data.computePixels(request)))
     except ee.ee_exception.EEException as e:
         response['error']= e
-        return None, response
+        pprint(response)
+        return None, response, items[0]
     return data, response, items[0]
 
 
@@ -245,7 +271,7 @@ def predict(items):
 
             data = structured_to_unstructured(data)
 
-            data_norma = np.stack([normalize_array(data[:,:,x]) for x in range(0, len(BANDS))])
+            data_norma = np.stack([normalize_array(data[:,:,x]) for x in FEATURES_INDEX])
 
 
             if APPLY_BRIGHT: 
@@ -262,24 +288,31 @@ def predict(items):
 
             # it only checks the supposed prediction and skip it if there is no logging
             prediction = np.copy(probabilities)
-            prediction[prediction < 0.5] = 0
-            prediction[prediction >= 0.5] = 1
+            prediction[prediction < 0.2] = 0
+            prediction[prediction >= 0.2] = 1
 
             if np.max(prediction[0]) == 0.0:
                 continue
 
 
-            # probabilities = probabilities[0]
-            # probabilities = np.transpose(probabilities, (2,0,1))
+            probabilities = probabilities[0]
+            probabilities = np.transpose(probabilities, (2,0,1))
+            
+            prediction = prediction[0].astype(np.uint8)
 
-            prediction = prediction[0]
+            # data_output = tf.unstack(data, axis=2)
+            # data_output.append(prediction[:,:,0])
+            # data_output = np.stack(data_output, axis=2)
+
+
             prediction = np.transpose(prediction, (2,0,1))
+            # prediction = np.transpose(data_output, (2,0,1))
 
             with rasterio.open(
                 OUTPUT_CHIPS.format(k, response['item'][1][0], idx),
                 'w',
                 driver = 'GTiff',
-                count = NUM_CLASSES,
+                count = 1,
                 height = prediction.shape[1],
                 width  = prediction.shape[2],
                 dtype  = prediction.dtype,
@@ -314,9 +347,6 @@ def flatten_extend(matrix):
 
 
 model = keras.saving.load_model(MODEL_PATH, compile=False)
-
-
-
 model.compile(
     optimizer=tf.keras.optimizers.Nadam(learning_rate=0.001), 
     loss=soft_dice_loss, 
@@ -353,7 +383,7 @@ for k, v in TILES.items():
     items = [list(zip([x] * len(coords), coords))
                 for x in v]
 
-    items = flatten_extend(items)
+    items = flatten_extend(items)[:3]
 
     items = enumerate(items)
 
@@ -361,27 +391,29 @@ for k, v in TILES.items():
     # run predictions
     predict(items)
 
+    '''
     # create mosaic 
-    # path_chips = [rasterio.open(x) for x in glob(f'{OUTPUT_TILE}/{k}/*')]
+    path_chips = [rasterio.open(x) for x in glob(f'{OUTPUT_TILE}/{k}/*')]
 
-    # mosaic, out_trans = merge(path_chips)
+    mosaic, out_trans = merge(path_chips)
 
-    #with rasterio.open(
-    #    f'{OUTPUT_TILE}/{k}_pred.tif',
-    #    'w',
-    #    driver = 'GTiff',
-    #    count = NUM_CLASSES,
-    #    height = mosaic.shape[1],
-    #    width  = mosaic.shape[2],
-    #    dtype  = mosaic.dtype,
-    #    crs    = rasterio.crs.CRS.from_epsg(4326),
-    #    transform = out_trans 
-    #) as dest:
-    #    dest.write(mosaic)
+    with rasterio.open(
+        f'{OUTPUT_TILE}/{k}_pred.tif',
+        'w',
+        driver = 'GTiff',
+        count = NUM_CLASSES,
+        height = mosaic.shape[1],
+        width  = mosaic.shape[2],
+        dtype  = mosaic.dtype,
+        crs    = rasterio.crs.CRS.from_epsg(4326),
+        transform = out_trans 
+    ) as dest:
+        dest.write(mosaic)
 #
     ## delete files
-    #for f in glob(f'{OUTPUT_TILE}/{k}/*.tif'):
-    #    os.remove(f)
+    for f in glob(f'{OUTPUT_TILE}/{k}/*.tif'):
+        os.remove(f)
+    '''
 
 
 
