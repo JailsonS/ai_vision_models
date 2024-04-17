@@ -35,9 +35,9 @@ To evaluate the best model performance we test different hyperparams for each mo
 
 
 ## Model v7
-- channels: [R, G, B, NIR, SWIR1] both t0 and t1
+- channels: [ GV, NPV, SOIL, SHADE, CLOUD, NDFI ] both t0 and t1
 - normalized dataset between 0 - 1
-- dataset v4
+- dataset v5
 - performance: 
     - loss: 
     - accuracy:  
@@ -57,3 +57,9 @@ To evaluate the best model performance we test different hyperparams for each mo
 ## Dataset v5
 - channels: ['gv','npv', 'soil', 'shade', 'cloud', 'ndfi'] both t0 and t1
 - label refined with IA
+
+
+
+
+
+--

@@ -288,8 +288,8 @@ def predict(items):
 
             # it only checks the supposed prediction and skip it if there is no logging
             prediction = np.copy(probabilities)
-            prediction[prediction < 0.2] = 0
-            prediction[prediction >= 0.2] = 1
+            prediction[prediction < 0.5] = 0
+            prediction[prediction >= 0.5] = 1
 
             if np.max(prediction[0]) == 0.0:
                 continue

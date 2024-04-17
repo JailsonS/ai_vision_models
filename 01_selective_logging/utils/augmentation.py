@@ -28,7 +28,6 @@ def flip_left_right(images, label):
 
     return x, y
 
-
 def rotate(images, label):
     unstacked = tf.unstack(images, axis=2)
     unstacked.append(label[:,:,0])

@@ -183,12 +183,6 @@ model = Unet(
     TARGET_BANDS, 
     optimizer=HYPER_PARAMS['optimizer'], 
     loss=soft_dice_loss, 
-    # metrics=[
-    #     tf.keras.metrics.IoU(num_classes=2, target_class_ids=[0]),
-    #     tf.keras.metrics.Precision(),
-    #     tf.keras.metrics.Recall(),
-    #     tf.keras.metrics.F1Score()
-    # ]
     metrics=[
         running_recall, 
         running_f1, 
