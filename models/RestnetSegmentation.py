@@ -9,7 +9,7 @@ class BasicBlock(nn.Module):
         self.bn1 = nn.BatchNorm2d(out_channels)
         self.conv2 = nn.Conv2d(out_channels, out_channels, kernel_size=3, stride=1, padding=1, bias=False)
         self.bn2 = nn.BatchNorm2d(out_channels)
-        self.relu = nn.ReLU(inplace=True)
+        self.relu = nn.LeakyReLU(inplace=True)
         self.stride = stride
 
     def forward(self, x):
@@ -38,7 +38,7 @@ class ResNetSemanticSegmentation(nn.Module):
         self.in_channels = in_channels
         self.conv1 = nn.Conv2d(in_channels, 64, kernel_size=7, stride=2, padding=3, bias=False)
         self.bn1 = nn.BatchNorm2d(64)
-        self.relu = nn.ReLU(inplace=True)
+        self.relu = nn.LeakyReLU(inplace=True)
         self.maxpool = nn.MaxPool2d(kernel_size=3, stride=2, padding=1)
         self.layer1 = self.make_layer(BasicBlock, 64, 3)
         self.layer2 = self.make_layer(BasicBlock, 128, 4, stride=2)

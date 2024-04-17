@@ -1,5 +1,6 @@
 import torch
 from torch.utils.data import Dataset
+import rasterio
 
 class SoftDiceLoss(torch.nn.Module):
     def __init__(self):
@@ -17,14 +18,17 @@ class SoftDiceLoss(torch.nn.Module):
 
 class DatasetSamples(Dataset):
 
-    def __init__(self, pathlist: list, transform=None) -> None:
+    def __init__(self, pathlist: list, transform=None, index=[]) -> None:
         self.pathlist = pathlist  
         self.transform = transform
+        self.index = index
 
     def __getitem__(self, idx):
         path = self.pathlist[idx]
 
-        data = Image.open(path)
+        data = rasterio.open(path)
+
+        data = data.read()[self.index]
 
         sample, label = data[:,:,:-1], data[:,:,-1:]
  
