@@ -1,6 +1,7 @@
 import torch
 import torchvision.transforms as T
 import pandas as pd
+import numpy as np
 
 from utils.torch_utils import *
 from glob import glob
@@ -19,7 +20,9 @@ EPOCHS = 50
 CLASSES = 2
 
 FEATURE_INDEX = [
-
+    0,1,2,
+    4,5,7,
+    10
 ]
 
 LOSS = SoftDiceLoss()
@@ -131,7 +134,7 @@ def evaluate(model, data_loader, criterion, device):
 
 
 def main():
-    # Set device
+
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
     TRANSFORMS = [
@@ -141,8 +144,10 @@ def main():
         normalize
     ]
 
-    # Define transformations
+    # define transformations
     transformations = T.Compose(TRANSFORMS + [T.ToTensor()])
+
+
 
 
     train_dataset = DatasetSamples(pathlist=PATH_TRAIN, transform=transformations, index=FEATURE_INDEX)
