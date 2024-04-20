@@ -73,8 +73,11 @@ class DatasetSamples(Dataset):
             align_corners=True
         ).squeeze(0)
      
-        #if self.transform:
-        #    sample = self.transform(sample)
+    
+        if self.transform:
+            data_label = torch.cat((sample, label), dim=0)
+            data_label = self.transform(data_label)
+            sample, label = data_label[:-1,:,:], data_label[-1:,:,:]
 
         return sample, label
         
