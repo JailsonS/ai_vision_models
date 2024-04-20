@@ -4,22 +4,22 @@ def model(input_shape, num_classes):
     inputs = tf.keras.Input(shape=input_shape)
     
     # Encoder (VGG-like)
-    x = tf.keras.layers.Conv2D(64, 3, padding='same', activation='relu')(inputs)
-    x = tf.keras.layers.Conv2D(64, 3, padding='same', activation='relu')(x)
+    x = tf.keras.layers.Conv2D(64, 3, padding='same', activation='leaky_relu')(inputs)
+    x = tf.keras.layers.Conv2D(64, 3, padding='same', activation='leaky_relu')(x)
     x = tf.keras.layers.MaxPooling2D(pool_size=(2, 2), strides=(2, 2), padding='same')(x)
     
-    x = tf.keras.layers.Conv2D(128, 3, padding='same', activation='relu')(x)
-    x = tf.keras.layers.Conv2D(128, 3, padding='same', activation='relu')(x)
+    x = tf.keras.layers.Conv2D(128, 3, padding='same', activation='leaky_relu')(x)
+    x = tf.keras.layers.Conv2D(128, 3, padding='same', activation='leaky_relu')(x)
     x = tf.keras.layers.MaxPooling2D(pool_size=(2, 2), strides=(2, 2), padding='same')(x)
     
-    x = tf.keras.layers.Conv2D(256, 3, padding='same', activation='relu')(x)
-    x = tf.keras.layers.Conv2D(256, 3, padding='same', activation='relu')(x)
-    x = tf.keras.layers.Conv2D(256, 3, padding='same', activation='relu')(x)
+    x = tf.keras.layers.Conv2D(256, 3, padding='same', activation='leaky_relu')(x)
+    x = tf.keras.layers.Conv2D(256, 3, padding='same', activation='leaky_relu')(x)
+    x = tf.keras.layers.Conv2D(256, 3, padding='same', activation='leaky_relu')(x)
     x = tf.keras.layers.MaxPooling2D(pool_size=(2, 2), strides=(2, 2), padding='same')(x)
     
     # Bottleneck
-    x = tf.keras.layers.Conv2D(512, 3, padding='same', activation='relu')(x)
-    x = tf.keras.layers.Conv2D(512, 3, padding='same', activation='relu')(x)
+    x = tf.keras.layers.Conv2D(512, 3, padding='same', activation='leaky_relu')(x)
+    x = tf.keras.layers.Conv2D(512, 3, padding='same', activation='leaky_relu')(x)
     x = tf.keras.layers.Conv2D(num_classes, 1, padding='same')(x)
     
     # Upsampling
@@ -30,6 +30,8 @@ def model(input_shape, num_classes):
     return model
 
 
+
+'''
 import numpy as np
 from collections import defaultdict
 import random
@@ -56,6 +58,8 @@ for group_key, group_indices in chip_groups.items():
     amostras_grupo = random.sample(group_indices, num_amostras_grupo)
     amostras_selecionadas.extend(amostras_grupo)
 
+    
+'''
 # 'amostras_selecionadas' agora contém os índices dos chips selecionados para amostragem
 
 # Você pode então usar esses índices para acessar os chips específicos na sua lista 'chips'

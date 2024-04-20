@@ -1,6 +1,7 @@
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
+import torch.nn.init as init
 
 class BasicBlock(nn.Module):
     def __init__(self, in_channels, out_channels, stride=1):
@@ -11,6 +12,9 @@ class BasicBlock(nn.Module):
         self.bn2 = nn.BatchNorm2d(out_channels)
         self.relu = nn.LeakyReLU(inplace=True)
         self.stride = stride
+
+        #init.kaiming_normal_(self.conv1.weight, mode='fan_out', nonlinearity='leaky_relu')
+        #init.kaiming_normal_(self.conv2.weight, mode='fan_out', nonlinearity='leaky_relu')
 
     def forward(self, x):
         identity = x
@@ -33,24 +37,24 @@ class BasicBlock(nn.Module):
         return out
 
 class ResNetSemanticSegmentation(nn.Module):
-    def __init__(self, in_channels, num_classes):
+    def __init__(self, num_classes, in_channels):
         super(ResNetSemanticSegmentation, self).__init__()
-        self.in_channels = in_channels
         self.conv1 = nn.Conv2d(in_channels, 64, kernel_size=7, stride=2, padding=3, bias=False)
         self.bn1 = nn.BatchNorm2d(64)
         self.relu = nn.LeakyReLU(inplace=True)
         self.maxpool = nn.MaxPool2d(kernel_size=3, stride=2, padding=1)
-        self.layer1 = self.make_layer(BasicBlock, 64, 3)
-        self.layer2 = self.make_layer(BasicBlock, 128, 4, stride=2)
-        self.layer3 = self.make_layer(BasicBlock, 256, 6, stride=2)
-        self.layer4 = self.make_layer(BasicBlock, 512, 3, stride=2)
-        self.avgpool = nn.AdaptiveAvgPool2d((1, 1))
+        self.layer1 = self.make_layer(BasicBlock, in_channels=64, out_channels=64, blocks=3)
+        self.layer2 = self.make_layer(BasicBlock, in_channels=64, out_channels=128, blocks=4, stride=2)
+        self.layer3 = self.make_layer(BasicBlock, in_channels=128, out_channels=256, blocks=6, stride=2)
+        self.layer4 = self.make_layer(BasicBlock, in_channels=256, out_channels=512, blocks=3, stride=2)
+        self.avgpool = nn.AdaptiveAvgPool2d((512,512))
         self.fc = nn.Conv2d(512, num_classes, kernel_size=1)
 
-    def make_layer(self, block, out_channels, blocks, stride=1):
+        #init.kaiming_normal_(self.fc.weight, mode='fan_out', nonlinearity='leaky_relu') 
+
+    def make_layer(self, block, in_channels, out_channels, blocks, stride=1):
         layers = []
-        layers.append(block(self.in_channels, out_channels, stride))
-        self.in_channels = out_channels
+        layers.append(block(in_channels, out_channels, stride))
         for _ in range(1, blocks):
             layers.append(block(out_channels, out_channels))
         return nn.Sequential(*layers)
@@ -68,4 +72,5 @@ class ResNetSemanticSegmentation(nn.Module):
 
         x = self.avgpool(x)
         x = self.fc(x)
+        x = torch.sigmoid(x, dim=1)
         return x
