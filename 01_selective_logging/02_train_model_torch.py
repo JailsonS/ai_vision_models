@@ -12,7 +12,7 @@ from utils.torch_utils import *
 from glob import glob
 from torch.utils.data import DataLoader
 from sklearn.metrics import recall_score, f1_score, precision_score, accuracy_score, jaccard_score
-from models.RestnetSegmentation import *
+from models.Resnet import *
 
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 

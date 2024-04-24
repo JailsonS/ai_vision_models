@@ -39,13 +39,24 @@ To evaluate the best model performance we test different hyperparams for each mo
 - normalized dataset between 0 - 1
 - dataset v5
 - performance: 
+    - loss: 0.4664
+    - accuracy: 0.9950 
+    - running_recall: 0.3468
+    - running_f1: 0.4328
+    - running_precision: 0.6665
+    - io_u: 0.1732
+
+## Model v8
+- channels: [ GV, NPV, SOIL, SHADE, CLOUD, NDFI ] both t0 and t1
+- normalized dataset between 0 - 1
+- dataset v6
+- performance: 
     - loss: 
     - accuracy:  
-    - running_recall:  
-    - running_f1:  
+    - running_recall: 
+    - running_f1: 
     - running_precision: 
     - io_u: 
-
 
 ## Dataset v3
 - channels: ['red','green', 'blue', 'nir', 'swir1'] both t0 and t1
@@ -59,6 +70,21 @@ To evaluate the best model performance we test different hyperparams for each mo
 - label refined with IA
 
 
+
+
+
+
+## Dataset v6
+- channels: ['gv','npv', 'soil', 'shade', 'cloud', 'ndfi'] both t0 and t1
+- label refined with IA and fixed using roads
+
+## Dataset v7
+- channels: ['red','green', 'blue', 'nir', 'swir1'] both t0 and t1
+- label refined with IA and fixed using roads
+
+## Dataset Bucket logging_v3
+- channels: ['all'] both t0 and t1
+- label refined with Roads IA
 
 
 

@@ -50,7 +50,7 @@ USE_FACTOR_BRIGHT = False
 #     'ndfi_t0',
 #     'ndfi_t1',
 # ]
-
+# 
 # TARGET_BANDS = [
 #     0,1,2,3,4,
 #     5,6,7,8,9,
@@ -80,7 +80,7 @@ KERNEL_SIZE = 512
 
 NUM_CLASSES = 1
 
-TEST_DATASET = '01_selective_logging/data/test_dataset_4.tfrecord'
+TEST_DATASET = '01_selective_logging/data/val_dataset_4.tfrecord'
 
 
 BATCH_SIZE = 9
@@ -170,8 +170,8 @@ def normalize_channels(data, label):
 
 dataset_test = tf.data.TFRecordDataset([TEST_DATASET])\
     .map(read_example)\
-    .map(replace_nan)\
-    .map(normalize_channels)
+    .map(replace_nan)
+    # .map(normalize_channels)
 
 
 '''
@@ -214,32 +214,32 @@ for i in range(1, 70):
 
         print(data.shape)
 
-        fig = plt.figure(figsize=(15,15))
+        fig = plt.figure(figsize=(15,15), frameon=False)
         gs = GridSpec(2, 4, figure=fig)
 
         ax1 = fig.add_subplot(gs[0, 0])
         ax2 = fig.add_subplot(gs[0, 1])
-        ax3 = fig.add_subplot(gs[1, 0])
-        ax4 = fig.add_subplot(gs[1, 1])
+        ax3 = fig.add_subplot(gs[0, 2])
+        #ax4 = fig.add_subplot(gs[1, 1])
 
         # (tensor - )
-        r, g, b = data[:, :, 0], data[:, :, 1], data[:, :, 2]
+        # r, g, b = data[:, :, 10], data[:, :, 11], data[:, :, 11]
         r1, g1, b1 = data[:, :, 3], data[:, :, 4], data[:, :, 5]
 
 
-        rgb = np.stack([r,g,b], 2)
+        #rgb = np.stack([r,g,b], 2)
         rgb1 = np.stack([r1,g1,b1], 2)
 
-        rgb_t1 = tf.clip_by_value(rgb1 * 1.5, 0, 1)
-        rgb_t0 = tf.clip_by_value(rgb * 1.5, 0, 1)
+        #rgb_t1 = tf.clip_by_value(rgb1 * 1.5, 0, 1)
+        #rgb_t0 = tf.clip_by_value(rgb * 1.5, 0, 1)
 
-        ax1.imshow(rgb_t0)
-        ax2.imshow(rgb_t1)
-        ax3.imshow(label.numpy(), cmap='gray')
+        ax1.imshow(rgb1)
+        ax2.imshow(label.numpy())
+        #ax3.imshow(label.numpy(), cmap='gray')
 
-        ax1.set_title("(a) - R G B (t0)", fontdict=font)
-        ax2.set_title("(b) - R G B (t1)", fontdict=font)
-        ax3.set_title("(c) - label", fontdict=font)
+        ax1.set_title("", fontdict=font)
+        ax2.set_title("", fontdict=font)
+        #ax3.set_title("(c) - label", fontdict=font)
 
 
         
@@ -254,8 +254,10 @@ for i in range(1, 70):
     # probabilities = probabilities[0].argmax(axis=-1).astype(np.uint8)
     # probabilities = np.expand_dims(probabilities, axis=2)
 
-    ax4.imshow(prep.image.array_to_img(probabilities))
-    ax4.set_title("(c) - predicted", fontdict=font)
+    ax3.imshow(prep.image.array_to_img(probabilities))
+    ax3.set_title("", fontdict=font)
 
-    plt.savefig(f'01_selective_logging/predictions/{i}.png')
+
+
+    plt.savefig(f'01_selective_logging/predictions/{i}.png', bbox_inches='tight', pad_inches=0)
     

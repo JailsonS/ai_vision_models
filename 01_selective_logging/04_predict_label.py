@@ -34,7 +34,7 @@ from retry import retry
 EXECUTOR = concurrent.futures.ThreadPoolExecutor(max_workers=4)
 
 USE_TOTAL_CHANNELS = True
-USE_FACTOR_BRIGHT = True
+USE_FACTOR_BRIGHT = False
 USE_CLOUD_DATASET = True
 
 BANDS = [
@@ -82,7 +82,7 @@ OUTPUT_DATASET = '01_selective_logging/data/logging_v2/{}'
 
 BATCH_SIZE = 9
 
-MODEL_NAME = 'model_v4.keras'
+MODEL_NAME = 'model_v5.keras'
 MODEL_OUTPUT = f'01_selective_logging/model/{MODEL_NAME}'
 
 
@@ -187,8 +187,8 @@ def get_patch(path):
 
 
     # replace zeros and ones
-    label_temp = tf.add(label, 1)
-    label = tf.where(tf.equal(label_temp, 2.0), 0.0, label_temp)
+    # label_temp = tf.add(label, 1)
+    # label = tf.where(tf.equal(label_temp, 2.0), 0.0, label_temp)
 
     # convert to int
     label = tf.cast(label, tf.int64)
@@ -213,8 +213,8 @@ def write_dataset(enum_items):
         metadata['width'] = KERNEL_SIZE
 
         probabilities = model.predict(input_data)
-        probabilities[probabilities < 0.01] = 0
-        probabilities[probabilities >= 0.01] = 1
+        probabilities[probabilities < 0.5] = 0
+        probabilities[probabilities >= 0.5] = 1
 
         output = probabilities[0]
 
@@ -227,7 +227,7 @@ def write_dataset(enum_items):
         with rasterio.open(
             OUTPUT_DATASET.format(id),
             'w',
-            driver = 'GTiff',
+            driver = 'COG',
             count = 23,
             height = KERNEL_SIZE,
             width  = KERNEL_SIZE,
@@ -236,6 +236,8 @@ def write_dataset(enum_items):
             transform=metadata['transform']
         ) as output:
             output.write(new_sample)
+
+        os.remove(f'{PATH_DATASET}/{id}')
 
         
 
