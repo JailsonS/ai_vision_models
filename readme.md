@@ -8,6 +8,7 @@ To evaluate the best model performance we test different hyperparams for each mo
 - normalized dataset between 0 - 1
 - enhanced brighted - 1.5
 - dataset v3
+- tensorflow==2.14.0
 
 ## Model v5
 - channels: [R, G, B] both t0 and t1
@@ -20,6 +21,7 @@ To evaluate the best model performance we test different hyperparams for each mo
     - running_f1: 0.8097 
     - running_precision: 0.7370 
     - io_u: 0.4177
+    - tensorflow==2.14.0
 
 ## Model v6
 - channels: [ NDFI ] both t0 and t1
@@ -32,6 +34,7 @@ To evaluate the best model performance we test different hyperparams for each mo
     - running_f1: 0.0000e+00
     - running_precision: 0.0000e+00 
     - io_u: 0.0000e+00
+    - tensorflow==2.14.0
 
 
 ## Model v7
@@ -45,9 +48,22 @@ To evaluate the best model performance we test different hyperparams for each mo
     - running_f1: 0.4328
     - running_precision: 0.6665
     - io_u: 0.1732
+    - tensorflow==2.14.0
 
 ## Model v8
 - channels: [ GV, NPV, SOIL, SHADE, CLOUD, NDFI ] both t0 and t1
+- dataset v6
+- performance: 
+    - loss: 
+    - accuracy:  
+    - running_recall: 
+    - running_f1: 
+    - running_precision: 
+    - io_u: 
+    - tensorflow==2.16.1
+
+## Model v9
+- channels: [R, G, B] both t0 and t1
 - normalized dataset between 0 - 1
 - dataset v6
 - performance: 
@@ -57,6 +73,7 @@ To evaluate the best model performance we test different hyperparams for each mo
     - running_f1: 
     - running_precision: 
     - io_u: 
+    - tensorflow==2.16.1
 
 ## Dataset v3
 - channels: ['red','green', 'blue', 'nir', 'swir1'] both t0 and t1

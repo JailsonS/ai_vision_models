@@ -28,11 +28,11 @@ class BasicBlock(nn.Module):
         return out
 
 class ResNet(nn.Module):
-    def __init__(self, block, num_blocks, num_classes=1):
+    def __init__(self, block, num_blocks, num_classes=1, in_channels=6):
         super(ResNet, self).__init__()
         self.in_planes = 64
 
-        self.conv1 = nn.Conv2d(3, 64, kernel_size=3, stride=1, padding=1, bias=False)
+        self.conv1 = nn.Conv2d(in_channels, 64, kernel_size=3, stride=1, padding=1, bias=False)
         self.bn1 = nn.BatchNorm2d(64)
         self.layer1 = self._make_layer(block, 64, num_blocks[0], stride=1)
         self.layer2 = self._make_layer(block, 128, num_blocks[1], stride=2)
@@ -42,11 +42,11 @@ class ResNet(nn.Module):
         self.fc = nn.Linear(512 * block.expansion, num_classes)
 
         # Upsampling layers
-        self.upconv1 = nn.ConvTranspose2d(512, 256, kernel_size=3, stride=2, padding=1, output_padding=1, bias=False)
+        self.upconv1 = nn.ConvTranspose2d(512, 256, kernel_size=4, stride=2, padding=1, output_padding=0, bias=False)
         self.bn_upconv1 = nn.BatchNorm2d(256)
-        self.upconv2 = nn.ConvTranspose2d(256, 128, kernel_size=3, stride=2, padding=1, output_padding=1, bias=False)
+        self.upconv2 = nn.ConvTranspose2d(256, 128, kernel_size=4, stride=2, padding=1, output_padding=0, bias=False)
         self.bn_upconv2 = nn.BatchNorm2d(128)
-        self.upconv3 = nn.ConvTranspose2d(128, 64, kernel_size=3, stride=2, padding=1, output_padding=1, bias=False)
+        self.upconv3 = nn.ConvTranspose2d(128, 64, kernel_size=4, stride=2, padding=1, output_padding=0, bias=False)
         self.bn_upconv3 = nn.BatchNorm2d(64)
         self.conv_out = nn.Conv2d(64, num_classes, kernel_size=1)
 
@@ -59,12 +59,17 @@ class ResNet(nn.Module):
         return nn.Sequential(*layers)
 
     def forward(self, x):
+        
+        #print('input', x.shape)
+
         out = F.relu(self.bn1(self.conv1(x)))
+
         out = self.layer1(out)
         out = self.layer2(out)
         out = self.layer3(out)
         out = self.layer4(out)
-        out = self.avgpool(out)
+
+        # out = self.avgpool(out)
         out = self.upconv1(out)
         out = F.relu(self.bn_upconv1(out))
         out = self.upconv2(out)
@@ -72,8 +77,11 @@ class ResNet(nn.Module):
         out = self.upconv3(out)
         out = F.relu(self.bn_upconv3(out))
         out = self.conv_out(out)
+        
+        #print('out', out.shape)
+
+
         return out
 
-def ResNet34():
-    return ResNet(BasicBlock, [3, 4, 6, 3])
-
+def ResNet34(num_classes, in_channels):
+    return ResNet(BasicBlock, [3, 4, 6, 3], num_classes=num_classes, in_channels=in_channels)
