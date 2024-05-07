@@ -99,10 +99,13 @@ To evaluate the best model performance we test different hyperparams for each mo
 - channels: ['red','green', 'blue', 'nir', 'swir1'] both t0 and t1
 - label refined with IA and fixed using roads
 
+## Dataset v8
+- channels: ['red','green', 'blue', 'nir', 'swir1'] both t0 and t1
+- label refined with IA and fixed using roads and removed bad samples
+
 ## Dataset Bucket logging_v3
 - channels: ['all'] both t0 and t1
 - label refined with Roads IA
-
 
 
 --

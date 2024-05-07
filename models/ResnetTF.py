@@ -19,15 +19,15 @@ class BasicBlock(tf.keras.layers.Layer):
                 tf.keras.layers.BatchNormalization()
             ])
 
-    def call(self, x, training=False):
-        out = tf.nn.relu(self.bn1(self.conv1(x), training=training))
-        out = self.bn2(self.conv2(out), training=training)
+    def call(self, x):
+        out = tf.nn.relu(self.bn1(self.conv1(x)))
+        out = self.bn2(self.conv2(out))
         out += self.shortcut(x)
         out = tf.nn.relu(out)
         return out
 
 class ResNet(Model):
-    def __init__(self, block, num_blocks, num_classes=1, in_channels=6):
+    def __init__(self, block, num_blocks, num_classes=1, optimizer=None, loss=None, metrics=None):
         super(ResNet, self).__init__()
         self.in_planes = 64
 
@@ -38,7 +38,7 @@ class ResNet(Model):
         self.layer3 = self._make_layer(block, 256, num_blocks[2], stride=2)
         self.layer4 = self._make_layer(block, 512, num_blocks[3], stride=2)
         self.avgpool = tf.keras.layers.GlobalAveragePooling2D()
-        self.fc = tf.keras.layers.Dense(num_classes)
+
 
         # Upsampling layers
         self.upconv1 = tf.keras.layers.Conv2DTranspose(256, kernel_size=4, strides=2, padding='same', use_bias=False)
@@ -47,7 +47,12 @@ class ResNet(Model):
         self.bn_upconv2 = tf.keras.layers.BatchNormalization()
         self.upconv3 = tf.keras.layers.Conv2DTranspose(64, kernel_size=4, strides=2, padding='same', use_bias=False)
         self.bn_upconv3 = tf.keras.layers.BatchNormalization()
-        self.conv_out = tf.keras.layers.Conv2D(num_classes, kernel_size=1)
+        self.conv_out = tf.keras.layers.Conv2D(num_classes, kernel_size=(1, 1),activation='sigmoid')
+
+        self.optimizer = optimizer
+        self.loss = loss
+        self.metrics = metrics
+        
 
     def _make_layer(self, block, planes, num_blocks, stride):
         strides = [stride] + [1]*(num_blocks-1)
@@ -57,24 +62,45 @@ class ResNet(Model):
             self.in_planes = planes * block.expansion
         return tf.keras.Sequential(layers)
 
-    def call(self, x, training=False):
-        out = tf.nn.relu(self.bn1(self.conv1(x), training=training))
+    def call(self, x):
 
-        out = self.layer1(out, training=training)
-        out = self.layer2(out, training=training)
-        out = self.layer3(out, training=training)
-        out = self.layer4(out, training=training)
+        print('input', x.shape)
+
+        out = tf.nn.relu(self.bn1(self.conv1(x),))
+
+        out = self.layer1(out)
+        out = self.layer2(out)
+        out = self.layer3(out)
+        out = self.layer4(out)
+
+        print('blocks', out.shape)
 
         # out = self.avgpool(out)
         out = self.upconv1(out)
-        out = tf.nn.relu(self.bn_upconv1(out), training=training)
+        out = tf.nn.relu(self.bn_upconv1(out))
         out = self.upconv2(out)
-        out = tf.nn.relu(self.bn_upconv2(out), training=training)
+        out = tf.nn.relu(self.bn_upconv2(out))
         out = self.upconv3(out)
-        out = tf.nn.relu(self.bn_upconv3(out), training=training)
+        out = tf.nn.relu(self.bn_upconv3(out))
         out = self.conv_out(out)
-        
-        return out
 
-def ResNet34(num_classes, in_channels):
-    return ResNet(BasicBlock, [3, 4, 6, 3], num_classes=num_classes, in_channels=in_channels)
+        print('out', out.shape)
+
+        model = tf.keras.models.Model(inputs=[x], outputs=[out])
+
+        model.compile(
+            optimizer=self.optimizer,
+            loss=self.loss,
+            metrics=self.metrics[0]
+        )
+
+        return model
+
+def ResNet34(num_classes, optimizer, loss, metrics):
+    return ResNet(
+        BasicBlock, [3, 4, 6, 3], 
+        num_classes=num_classes, 
+        optimizer=optimizer,
+        loss=loss,
+        metrics=metrics
+    )

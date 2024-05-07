@@ -80,7 +80,7 @@ KERNEL_SIZE = 512
 
 NUM_CLASSES = 1
 
-TEST_DATASET = '01_selective_logging/data/val_dataset_4.tfrecord'
+TEST_DATASET = '01_selective_logging/data/test_dataset_8.tfrecord'
 
 
 BATCH_SIZE = 9
@@ -170,8 +170,8 @@ def normalize_channels(data, label):
 
 dataset_test = tf.data.TFRecordDataset([TEST_DATASET])\
     .map(read_example)\
-    .map(replace_nan)
-    # .map(normalize_channels)
+    .map(replace_nan)\
+    .map(normalize_channels)
 
 
 '''
@@ -195,11 +195,14 @@ model.compile(
         tf.keras.metrics.IoU(num_classes=2, target_class_ids=[1])]
 )
 
-# model.evaluate(dataset_test.batch(9))
+model.evaluate(dataset_test.batch(9))
 
-# v5 loss: 0.1580 - accuracy: 0.9970 - running_recall: 0.9031 - running_f1: 0.8097 - running_precision: 0.7370 - io_u: 0.4177
-# v7 loss: 0.4664 - accuracy: 0.9950 - running_recall: 0.3468 - running_f1: 0.4328 - running_precision: 0.6665 - io_u: 0.1732
+# v5  loss: 0.1580 - accuracy: 0.9970 - running_recall: 0.9031 - running_f1: 0.8097 - running_precision: 0.7370 - io_u: 0.4177
+# v5_ loss: 0.2288 - accuracy: 0.9820 - running_recall: 0.8621 - running_f1: 0.8223 - running_precision: 0.9084 - io_u: 0.0646
+# v7  loss: 0.4664 - accuracy: 0.9950 - running_recall: 0.3468 - running_f1: 0.4328 - running_precision: 0.6665 - io_u: 0.1732
+# v10 loss: 0.5193 - accuracy: 0.9587 - running_recall: 0.2942 - running_f1: 0.3915 - running_precision: 0.9294. - io_u: 0.0123
 
+exit()
 
 font = {
     'family': 'serif',

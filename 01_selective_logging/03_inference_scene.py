@@ -49,13 +49,11 @@ ASSET_TILES = 'projects/mapbiomas-workspace/AUXILIAR/SENTINEL2/grid_sentinel'
     Config Info
 '''
 
-ADD_NDFI = True
+ADD_NDFI = False
 APPLY_BRIGHT = False
 
 TILES = {
-    '22MGA': [
-        '20220724T133851_20220724T134243_T22MGA'
-    ]
+    '22MGA': []
 }
 
 KERNEL_SIZE = 512
@@ -73,7 +71,7 @@ OUTPUT_TILE = '01_selective_logging/predictions'
 
 '''
 
-EXECUTOR = concurrent.futures.ThreadPoolExecutor(max_workers=30)
+EXECUTOR = concurrent.futures.ThreadPoolExecutor(max_workers=35)
 
 
 # image resolution in meters
@@ -291,8 +289,8 @@ def predict(items):
             prediction[prediction < 0.5] = 0
             prediction[prediction >= 0.5] = 1
 
-            if np.max(prediction[0]) == 0.0:
-                continue
+            # if np.max(prediction[0]) == 0.0:
+            #     continue
 
 
             probabilities = probabilities[0]
@@ -311,7 +309,7 @@ def predict(items):
             with rasterio.open(
                 OUTPUT_CHIPS.format(k, response['item'][1][0], idx),
                 'w',
-                driver = 'GTiff',
+                driver = 'COG',
                 count = 1,
                 height = prediction.shape[1],
                 width  = prediction.shape[2],
@@ -338,12 +336,6 @@ def flatten_extend(matrix):
     Implementation
 
 '''
-
-
-#outputs = smlayer(tf.keras.layers.Input(shape=[None, None, len(BANDS)]))
-
-#model = tf.keras.Model(inputs=tf.keras.layers.Input(shape=[None, None, len(BANDS)]), outputs=outputs)
-#model.compile(optimizer='adam', loss=soft_dice_loss)
 
 
 model = keras.saving.load_model(MODEL_PATH, compile=False)
@@ -383,7 +375,7 @@ for k, v in TILES.items():
     items = [list(zip([x] * len(coords), coords))
                 for x in v]
 
-    items = flatten_extend(items)[:3]
+    items = flatten_extend(items)
 
     items = enumerate(items)
 
@@ -391,7 +383,7 @@ for k, v in TILES.items():
     # run predictions
     predict(items)
 
-    '''
+    
     # create mosaic 
     path_chips = [rasterio.open(x) for x in glob(f'{OUTPUT_TILE}/{k}/*')]
 
@@ -413,7 +405,7 @@ for k, v in TILES.items():
     ## delete files
     for f in glob(f'{OUTPUT_TILE}/{k}/*.tif'):
         os.remove(f)
-    '''
+
 
 
 
