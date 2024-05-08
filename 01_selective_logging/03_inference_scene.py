@@ -41,8 +41,10 @@ ee.Initialize(opt_url='https://earthengine-highvolume.googleapis.com', project='
 
 ASSET_COLLECTION = 'COPERNICUS/S2_HARMONIZED'
 #ASSET_TILES = 'projects/imazon-simex/MAPASREFERENCIA/GRID_SENTINEL'
+
 ASSET_TILES = 'projects/mapbiomas-workspace/AUXILIAR/SENTINEL2/grid_sentinel'
 
+ASSET_LEGAL_AMAZON = 'users/jailson/brazilian_legal_amazon'
 
 
 '''
@@ -52,9 +54,7 @@ ASSET_TILES = 'projects/mapbiomas-workspace/AUXILIAR/SENTINEL2/grid_sentinel'
 ADD_NDFI = False
 APPLY_BRIGHT = False
 
-TILES = {
-    '22MGA': []
-}
+TILES = []
 
 KERNEL_SIZE = 512
 
@@ -120,16 +120,19 @@ NEW_BAND_NAMES = [
 ]
 
 FEATURES = [
-    'red_t0','green_t0', 'blue_t0', 'ndfi_t0',
-    'red_t1','green_t1', 'blue_t1', 'ndfi_t1'
+    'red_t0','green_t0', 'blue_t0', #'ndfi_t0',
+    'red_t1','green_t1', 'blue_t1', #'ndfi_t1'
 ]
 
 FEATURES_INDEX = [
     0, 1, 2,
-    4, 5, 6
+    3, 4, 5
 ]
 
 
+
+T0 = '2022-08-01'
+T1 = '2023-08-30'
 
 '''
 
@@ -289,8 +292,8 @@ def predict(items):
             prediction[prediction < 0.5] = 0
             prediction[prediction >= 0.5] = 1
 
-            # if np.max(prediction[0]) == 0.0:
-            #     continue
+            if np.max(prediction[0]) == 0.0:
+                continue
 
 
             probabilities = probabilities[0]
@@ -349,7 +352,21 @@ model.compile(
         tf.keras.metrics.IoU(num_classes=2, target_class_ids=[1])]
 )
 
-for k, v in TILES.items():
+'''
+
+    Running Session
+
+'''
+
+roi = ee.FeatureCollection(ASSET_LEGAL_AMAZON)
+
+if len(TILES) == 0:
+    TILES = ee.FeatureCollection(ASSET_TILES).filterBounds(roi.geometry())\
+        .reduceColumns(ee.Reducer.toList(), ['NAME']).get('list').getInfo()
+
+# for k, v in TILES.items():
+
+for k in TILES:
 
     if not os.path.isdir(f'01_selective_logging/predictions/{k}'):
         os.mkdir(os.path.abspath(f'01_selective_logging/predictions/{k}'))
@@ -368,12 +385,29 @@ for k, v in TILES.items():
 
 
     # if not specified get all scenes from grid
-    if len(v) == 0:
-        col = ee.ImageCollection(ASSET_COLLECTION).filter(f'MGRS_TILE == "{k}"')
-        v = col.reduceColumns(ee.Reducer.toList(), ['system:index']).get('list').getInfo()
+    # if len(v) == 0:
+    #     col = ee.ImageCollection(ASSET_COLLECTION)\
+    #         .filter(f'MGRS_TILE == "{k}"')\
+    #         .filterDate(T0, T1)
+
+    #     v = col.reduceColumns(ee.Reducer.toList(), ['system:index']).get('list').getInfo()
     
+    col = ee.ImageCollection(ASSET_COLLECTION)\
+        .filter(f'MGRS_TILE == "{k}"')\
+        .filterDate(T0, T1)
+
+    v = col.reduceColumns(ee.Reducer.toList(), ['system:index']).get('list').getInfo()
+
+    # identify loaded images
+    loaded = ['_'.join(x.split('/')[-1].split('_')[:3]) 
+                for x in glob(f'{OUTPUT_TILE}/{k}/*')]
+
+    loaded = list(set(loaded))
+
+    list_image_id = [x for x in v if x not in loaded]
+
     items = [list(zip([x] * len(coords), coords))
-                for x in v]
+                for x in list_image_id]
 
     items = flatten_extend(items)
 
@@ -383,7 +417,8 @@ for k, v in TILES.items():
     # run predictions
     predict(items)
 
-    
+    '''
+
     # create mosaic 
     path_chips = [rasterio.open(x) for x in glob(f'{OUTPUT_TILE}/{k}/*')]
 
@@ -392,7 +427,7 @@ for k, v in TILES.items():
     with rasterio.open(
         f'{OUTPUT_TILE}/{k}_pred.tif',
         'w',
-        driver = 'GTiff',
+        driver = 'COG',
         count = NUM_CLASSES,
         height = mosaic.shape[1],
         width  = mosaic.shape[2],
@@ -401,10 +436,13 @@ for k, v in TILES.items():
         transform = out_trans 
     ) as dest:
         dest.write(mosaic)
+
+
+    '''
 #
     ## delete files
-    for f in glob(f'{OUTPUT_TILE}/{k}/*.tif'):
-        os.remove(f)
+    #for f in glob(f'{OUTPUT_TILE}/{k}/*.tif'):
+    #    os.remove(f)
 
 
 
