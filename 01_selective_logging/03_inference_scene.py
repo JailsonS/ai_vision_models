@@ -12,7 +12,7 @@ from pprint import pprint
 import numpy as np
 import tensorflow as tf
 import ee, io, rasterio, keras
-import concurrent
+import concurrent, gc
 
 from tensorflow.keras import backend as  K
 
@@ -46,6 +46,8 @@ ASSET_TILES = 'projects/mapbiomas-workspace/AUXILIAR/SENTINEL2/grid_sentinel'
 
 ASSET_LEGAL_AMAZON = 'users/jailson/brazilian_legal_amazon'
 
+ASSET_UF = 'projects/mapbiomas-workspace/AUXILIAR/estados-2016'
+
 
 '''
     Config Info
@@ -55,6 +57,54 @@ ADD_NDFI = False
 APPLY_BRIGHT = False
 
 TILES = []
+
+TILES_FINISHED = [
+    '21LXF',
+    '21LXG',
+    '21LXH',
+    '21LXJ',
+    '21LXK',
+    '21LXL',
+    #'21LYC',
+    '21LYD',
+    '22MCS',
+    '21NYC',
+    '19MEV',
+    '20MLD',
+    '22LCM',
+    '22MEB',
+    '22NEG',
+    '19MFU',
+    '19LDH',
+    '18MXT',
+    '21MUQ',
+    '20NMK', # trash
+    '22NDL', # trash
+    '21LWK',
+    '21LZK',
+    '21LVC',
+    '21LUJ',
+    '22LCK',
+    '21LWJ',
+    '21LUF',
+    '21KZB',
+    '21KVB',
+    '20LRP',
+    '20LRH',
+    '22LBH',
+    '22LBP',
+    '22LDL',
+    '22LDQ',
+    '21LTD',
+    '21LUK',
+    '20LQJ',
+    '21LVJ',
+    '21LUD',
+    '21LTH',
+    '20LPP',
+    '22LCL'
+    # gerar pdf da versçai di artugi 
+]
 
 KERNEL_SIZE = 512
 
@@ -69,9 +119,16 @@ OUTPUT_TILE = '01_selective_logging/predictions'
 
     Request Template
 
+
+    - qual a vetorização mais eficiente (spline)
+
+    - salvar área do pixe e área ajustada por poligono
+
+    
+
 '''
 
-EXECUTOR = concurrent.futures.ThreadPoolExecutor(max_workers=35)
+EXECUTOR = concurrent.futures.ThreadPoolExecutor(max_workers=40)
 
 
 # image resolution in meters
@@ -132,7 +189,7 @@ FEATURES_INDEX = [
 
 
 T0 = '2022-08-01'
-T1 = '2023-08-30'
+T1 = '2022-08-30'
 
 '''
 
@@ -262,70 +319,81 @@ def get_patch(items):
 
 def predict(items):
 
-    future_to_point = {EXECUTOR.submit(get_patch, item): item for item in items}
+    with tf.device('/GPU:0'):
 
-    for future in concurrent.futures.as_completed(future_to_point):
-        
-        data, response, idx = future.result()
+        future_to_point = {EXECUTOR.submit(get_patch, item): item for item in items}
 
-        if data is not None:
-
-            data = structured_to_unstructured(data)
-
-            data_norma = np.stack([normalize_array(data[:,:,x]) for x in FEATURES_INDEX])
-
-
-            if APPLY_BRIGHT: 
-                data_norma = apply_brightness(data_norma)
-
-            data_transposed = np.transpose(data_norma, (1,2,0))
-            data_transposed = np.expand_dims(data_transposed, axis=0)
-
-
-            # add exception here
-            # for prediction its necessary to have an extra dimension representing the bach
-            probabilities = model.predict(data_transposed)
-
-
-            # it only checks the supposed prediction and skip it if there is no logging
-            prediction = np.copy(probabilities)
-            prediction[prediction < 0.5] = 0
-            prediction[prediction >= 0.5] = 1
-
-            if np.max(prediction[0]) == 0.0:
-                continue
-
-
-            probabilities = probabilities[0]
-            probabilities = np.transpose(probabilities, (2,0,1))
+        for future in concurrent.futures.as_completed(future_to_point):
             
-            prediction = prediction[0].astype(np.uint8)
+            data, response, idx = future.result()
 
-            # data_output = tf.unstack(data, axis=2)
-            # data_output.append(prediction[:,:,0])
-            # data_output = np.stack(data_output, axis=2)
+            if data is not None:
+
+                data = structured_to_unstructured(data)
+
+                data_norma = np.stack([normalize_array(data[:,:,x]) for x in FEATURES_INDEX])
 
 
-            prediction = np.transpose(prediction, (2,0,1))
-            # prediction = np.transpose(data_output, (2,0,1))
+                if APPLY_BRIGHT: data_norma = apply_brightness(data_norma)
 
-            with rasterio.open(
-                OUTPUT_CHIPS.format(k, response['item'][1][0], idx),
-                'w',
-                driver = 'COG',
-                count = 1,
-                height = prediction.shape[1],
-                width  = prediction.shape[2],
-                dtype  = prediction.dtype,
-                crs    = rasterio.crs.CRS.from_epsg(4326),
-                transform=rasterio.transform.from_origin(response['item'][1][1][0] + OFFSET_X,
-                                                         response['item'][1][1][1] + OFFSET_Y,
-                                                         SCALE_X,
-                                                         SCALE_Y)
-            ) as output:
+                data_transposed = np.transpose(data_norma, (1,2,0))
+                data_transposed = np.expand_dims(data_transposed, axis=0)
+
+
+                # add exception here
+                # for prediction its necessary to have an extra dimension representing the bach
+                probabilities = model.predict(data_transposed)
+
+
+                # it only checks the supposed prediction and skip it if there is no logging
+                prediction = np.copy(probabilities)
+                prediction[prediction < 0.5] = 0
+                prediction[prediction >= 0.5] = 1
+
+                if np.max(prediction[0]) == 0.0 or np.max(prediction[0]) == 0:
+                    continue
+
+
+                probabilities = probabilities[0]
+                probabilities = np.transpose(probabilities, (2,0,1))
+                
+                prediction = prediction[0].astype(np.uint8)
+
+                # data_output = tf.unstack(data, axis=2)
+                # data_output.append(prediction[:,:,0])
+                # data_output = np.stack(data_output, axis=2)
+
+
+                prediction = np.transpose(prediction, (2,0,1))
+                # prediction = np.transpose(data_output, (2,0,1))
+
+                name = OUTPUT_CHIPS.format(k, response['item'][1][0], idx)
+
+                print(name)
+
+                output = rasterio.open(
+                    name,
+                    'w',
+                    driver = 'COG',
+                    count = 1,
+                    height = prediction.shape[1],
+                    width  = prediction.shape[2],
+                    dtype  = prediction.dtype,
+                    crs    = rasterio.crs.CRS.from_epsg(4326),
+                    transform=rasterio.transform.from_origin(response['item'][1][1][0] + OFFSET_X,
+                                                            response['item'][1][1][1] + OFFSET_Y,
+                                                            SCALE_X,
+                                                            SCALE_Y)
+                )
+                
                 output.write(prediction)
+                output.close()
 
+                
 
+                # Liberar recursos
+                del data, data_norma, data_transposed, probabilities, prediction, response, idx
+                gc.collect()
 
 def flatten_extend(matrix):
     flat_list = []
@@ -358,11 +426,15 @@ model.compile(
 
 '''
 
-roi = ee.FeatureCollection(ASSET_LEGAL_AMAZON)
+# roi = ee.FeatureCollection(ASSET_LEGAL_AMAZON)
+
+roi = ee.FeatureCollection(ASSET_UF).filter('NM_ESTADO == "MATO GROSSO"')
 
 if len(TILES) == 0:
     TILES = ee.FeatureCollection(ASSET_TILES).filterBounds(roi.geometry())\
         .reduceColumns(ee.Reducer.toList(), ['NAME']).get('list').getInfo()
+
+TILES = list(set(TILES) - set(TILES_FINISHED))
 
 # for k, v in TILES.items():
 
@@ -406,16 +478,15 @@ for k in TILES:
 
     list_image_id = [x for x in v if x not in loaded]
 
-    items = [list(zip([x] * len(coords), coords))
-                for x in list_image_id]
+    print(len(list_image_id))
 
-    items = flatten_extend(items)
+    for img_id in list_image_id:
 
-    items = enumerate(items)
+        items = list(zip([img_id] * len(coords), coords))
+        items = enumerate(items)
 
-
-    # run predictions
-    predict(items)
+        # run predictions
+        predict(items)
 
     '''
 
@@ -437,6 +508,20 @@ for k in TILES:
     ) as dest:
         dest.write(mosaic)
 
+
+
+
+
+
+var ASSET_TILES = 'projects/mapbiomas-workspace/AUXILIAR/SENTINEL2/grid_sentinel'
+
+var ASSET_LEGAL_AMAZON = 'users/jailson/brazilian_legal_amazon'
+
+
+var roi = ee.FeatureCollection(ASSET_LEGAL_AMAZON);
+var tiles = ee.FeatureCollection(ASSET_TILES).filterBounds(roi.geometry());
+
+print(tiles.size()) - 46.650
 
     '''
 #
