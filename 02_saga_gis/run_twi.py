@@ -38,6 +38,8 @@ ASSET_TILES = 'users/mapbiomas_c1/bigGrids_paises'
 
 PATH_BASE_OUTPUT = '02_saga_gis/data'
 
+PATH_SAGA = '/usr/bin/saga_cmd'
+
 LIST_ALREADY_PROCESSED = []
 
 
@@ -56,7 +58,7 @@ ee.Initialize(project=PROJECT_ID)
 
 
 
-saga = SAGA('/usr/bin/saga_cmd')
+saga = SAGA(PATH_SAGA)
 
 # choosing libraries.
 preprocessor = saga / 'terrain_analysis'
@@ -74,11 +76,9 @@ print(topographic_wetness_index.execute(ignore_stderr=True).stdout)
     Input Data
 '''
 
-dem = ee.ImageCollection(ASSET_DEM).mosaic().toInt16()
+# dem = ee.ImageCollection(ASSET_DEM).mosaic().toInt16()
 
-tiles = ee.FeatureCollection(ASSET_TILES).filter(ee.Filter.inList('grid_name', LIST_ALREADY_PROCESSED).Not())
-
-print('tiles to process:', tiles.size().getInfo())
+#tiles = ee.FeatureCollection(ASSET_TILES).filter(ee.Filter.inList('grid_name', LIST_ALREADY_PROCESSED).Not())
 
 list_images_dem = list(glob(f'{PATH_BASE_OUTPUT}/*'))
 
