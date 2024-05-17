@@ -48,6 +48,7 @@ ASSET_LEGAL_AMAZON = 'users/jailson/brazilian_legal_amazon'
 
 ASSET_UF = 'projects/mapbiomas-workspace/AUXILIAR/estados-2016'
 
+ASSET_SIMEX = 'users/jailson/simex/te_amz_legal_exp_simex_2020'
 
 '''
     Config Info
@@ -102,7 +103,11 @@ TILES_FINISHED = [
     '21LUD',
     '21LTH',
     '20LPP',
-    '22LCL'
+    '22LCL',
+    '21LVH',
+    '22LEP',
+    '21LTL',
+    '20LRM'
     # gerar pdf da versçai di artugi 
 ]
 
@@ -430,11 +435,15 @@ model.compile(
 
 roi = ee.FeatureCollection(ASSET_UF).filter('NM_ESTADO == "MATO GROSSO"')
 
+simex = ee.FeatureCollection(ASSET_SIMEX).filter('nm_estad_1 == "MATO GROSSO"') 
+
 if len(TILES) == 0:
-    TILES = ee.FeatureCollection(ASSET_TILES).filterBounds(roi.geometry())\
+    TILES = ee.FeatureCollection(ASSET_TILES).filterBounds(simex.geometry())\
         .reduceColumns(ee.Reducer.toList(), ['NAME']).get('list').getInfo()
 
 TILES = list(set(TILES) - set(TILES_FINISHED))
+
+print(len(TILES))
 
 # for k, v in TILES.items():
 

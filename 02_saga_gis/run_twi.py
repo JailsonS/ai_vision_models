@@ -61,10 +61,10 @@ ee.Initialize(project=PROJECT_ID)
 saga = SAGA(PATH_SAGA)
 
 # choosing libraries.
-preprocessor = saga / 'terrain_analysis'
+preprocessor = saga / 'ta_hydrology'
 
 # choosing tools.
-topographic_wetness_index = saga / 'terrain_analysis' / 'Topographic Wetness Index (One Step)'
+topographic_wetness_index = saga / 'ta_hydrology' / 'Topographic Wetness Index (One Step)'
 
 # check method's param
 print(topographic_wetness_index.execute(ignore_stderr=True).stdout)
