@@ -107,7 +107,12 @@ TILES_FINISHED = [
     '21LVH',
     '22LEP',
     '21LTL',
-    '20LRM'
+    '20LRM',
+    '21LUH',
+    '21LWH',
+    '21LZJ',
+    '22LCP',
+    
     # gerar pdf da versçai di artugi 
 ]
 
@@ -133,7 +138,7 @@ OUTPUT_TILE = '01_selective_logging/predictions'
 
 '''
 
-EXECUTOR = concurrent.futures.ThreadPoolExecutor(max_workers=40)
+EXECUTOR = concurrent.futures.ThreadPoolExecutor(max_workers=10)
 
 
 # image resolution in meters
@@ -438,7 +443,9 @@ roi = ee.FeatureCollection(ASSET_UF).filter('NM_ESTADO == "MATO GROSSO"')
 simex = ee.FeatureCollection(ASSET_SIMEX).filter('nm_estad_1 == "MATO GROSSO"') 
 
 if len(TILES) == 0:
-    TILES = ee.FeatureCollection(ASSET_TILES).filterBounds(simex.geometry())\
+    TILES = ee.FeatureCollection(ASSET_TILES)\
+        .filterBounds(roi.geometry())\
+        .filterBounds(simex.geometry())\
         .reduceColumns(ee.Reducer.toList(), ['NAME']).get('list').getInfo()
 
 TILES = list(set(TILES) - set(TILES_FINISHED))

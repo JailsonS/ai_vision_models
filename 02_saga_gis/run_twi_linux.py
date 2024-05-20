@@ -1,5 +1,5 @@
 '''
-    Before Run - Install Saga
+    author: Jailson S. (Imazon)
 '''
 
 
@@ -29,21 +29,19 @@ from PySAGA_cmd import (SAGA)
 '''
 
 # your google cloud project
-PROJECT_ID = 'ee-simex'
+PROJECT_ID = 'your-project'
 
+# base path of your input images 
+PATH_INPUT = '02_saga_gis/data/input'
 
-ASSET_DEM = 'projects/sat-io/open-datasets/FABDEM'
+# base path of your output
+PATH_OUTPUT = '02_saga_gis/data/output'
 
-ASSET_TILES = 'users/mapbiomas_c1/bigGrids_paises'
-
-PATH_BASE_OUTPUT = '02_saga_gis/data'
-
+# locate your .exe saga file
 PATH_SAGA = '/usr/bin/saga_cmd'
 
-LIST_ALREADY_PROCESSED = []
-
-
 # workers to paralell threads
+# depending on you machine, you may increase the number of workers
 EXECUTOR = concurrent.futures.ThreadPoolExecutor(max_workers=4)
 
 
@@ -76,11 +74,12 @@ print(topographic_wetness_index.execute(ignore_stderr=True).stdout)
     Input Data
 '''
 
-# dem = ee.ImageCollection(ASSET_DEM).mosaic().toInt16()
+list_images_dem = list(glob(f'{PATH_INPUT}/*'))
+list_images_out = list(glob(f'{PATH_OUTPUT}/*'))
+list_images_out = [x.replace('TWI_', '') for x in list_images_out]
 
-#tiles = ee.FeatureCollection(ASSET_TILES).filter(ee.Filter.inList('grid_name', LIST_ALREADY_PROCESSED).Not())
-
-list_images_dem = list(glob(f'{PATH_BASE_OUTPUT}/*'))
+# skip files processed
+list_images_dem = list(set(list_images_dem) - set(list_images_out))
 
 
 '''
@@ -97,13 +96,8 @@ def get_patch(path):
     """Get Image and Process."""
 
     image_name = path.split('/')[-1]
-    image = rasterio.open(path)
 
-    meta = image.meta
-
-    image_arr = image.read()
-
-    output_path = f'{PATH_BASE_OUTPUT}/TWI_{image_name}'
+    output_path = f'{PATH_OUTPUT}/TWI_{image_name}'
 
     try:
 
@@ -134,7 +128,7 @@ def run(items):
 
         if data is None: continue
 
-        print(data)
+        print(f'image finished: {data}')
 
 
 '''
@@ -142,3 +136,5 @@ def run(items):
     Run Process
 
 '''
+
+run(list_images_dem)
