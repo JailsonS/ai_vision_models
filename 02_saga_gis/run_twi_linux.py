@@ -117,7 +117,6 @@ def get_patch(path):
     return output.rasters['TWI'], image_name
 
 
-
 def run(items):
 
     future_to_point = {EXECUTOR.submit(get_patch, item): item for item in items}

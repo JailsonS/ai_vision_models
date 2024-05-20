@@ -6,7 +6,7 @@ This is a short python script that uses SAGA lib to compute Topographic Wetness 
 it is necessary to install SAGA GIS software, you may access the installer at the [link](https://sourceforge.net/projects/saga-gis/)
 
 ## Create and activate python virtual env
-On root dir of this repository run the code below
+At the root dir of this repository run the code below
 ```
 # create virtual env
 python -m venv venv
@@ -23,3 +23,7 @@ venv/Scripts/activate
 pip install -r requirements.txt
 
 ```
+
+## Run Script
+Download your DEM files and put them at the path *02_saga_gis/data/input*. Your outputs will be at *02_saga_gis/data/output*
+
