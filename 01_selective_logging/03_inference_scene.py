@@ -13,20 +13,24 @@ import numpy as np
 import tensorflow as tf
 import ee, io, rasterio, keras
 import concurrent, gc
+import logging
+import psutil
 
 from tensorflow.keras import backend as  K
 
 from utils.metrics import *
 from utils.index import *
-from models.UnetDefault import Unet
 
-from rasterio.merge import merge
 from numpy.lib.recfunctions import structured_to_unstructured
 from retry import retry
 from glob import glob
 from pprint import pprint
 
+
 os.environ['TF_CPP_MIN_LOG_LEVEL'] = '3'
+
+logging.basicConfig(level=logging.INFO)
+logger = logging.getLogger(__name__)
 
 ee.Initialize(opt_url='https://earthengine-highvolume.googleapis.com', project='sad-deep-learning-274812')
 
@@ -80,8 +84,8 @@ OUTPUT_TILE = '01_selective_logging/predictions'
 
 '''
 
-EXECUTOR = concurrent.futures.ThreadPoolExecutor(max_workers=30)
-
+EXECUTOR = concurrent.futures.ThreadPoolExecutor(max_workers=10)
+#EXECUTOR = concurrent.futures.ProcessPoolExecutor(max_workers=10)
 
 # image resolution in meters
 SCALE = 10
@@ -143,6 +147,14 @@ FEATURES_INDEX = [
     Functions
 
 '''
+
+
+
+def log_memory_usage():
+    process = psutil.Process(os.getpid())
+    mem_info = process.memory_info()
+    logger.info(f"Memory Usage: RSS={mem_info.rss / (1024 ** 2):.2f} MB, VMS={mem_info.vms / (1024 ** 2):.2f} MB")
+
 
 def normalize_array(array):
     min_value = np.min(array)
@@ -294,8 +306,8 @@ def predict(items):
 
                 # it only checks the supposed prediction and skip it if there is no logging
                 prediction = np.copy(probabilities)
-                prediction[prediction < 0.5] = 0
-                prediction[prediction >= 0.5] = 1
+                prediction[prediction < 0.3] = 0
+                prediction[prediction >= 0.3] = 1
 
                 if np.max(prediction[0]) == 0.0 or np.max(prediction[0]) == 0:
                     continue
@@ -317,8 +329,8 @@ def predict(items):
                 name = OUTPUT_CHIPS.format(year,month,k,response['item'][1][0], idx)
 
                 print(name)
-
-                output = rasterio.open(
+                
+                with rasterio.open(
                     name,
                     'w',
                     driver = 'COG',
@@ -331,16 +343,13 @@ def predict(items):
                                                             response['item'][1][1][1] + OFFSET_Y,
                                                             SCALE_X,
                                                             SCALE_Y)
-                )
-                
-                output.write(prediction)
-                output.close()
+                ) as output:
+                    output.write(prediction)
 
-                
+            
 
-                # Liberar recursos
-                del data, data_norma, data_transposed, probabilities, prediction, response, idx
-                gc.collect()
+
+            log_memory_usage()
 
 def flatten_extend(matrix):
     flat_list = []
@@ -456,9 +465,7 @@ for year in YEARS:
                 # run predictions
                 predict(items)
 
-
-
-
+            gc.collect()
 
 
 
