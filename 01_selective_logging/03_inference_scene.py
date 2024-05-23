@@ -50,6 +50,8 @@ ASSET_UF = 'projects/mapbiomas-workspace/AUXILIAR/estados-2016'
 
 ASSET_SIMEX = 'users/jailson/simex/te_amz_legal_exp_simex_2020'
 
+ASSET_CLASSIFICATION = 'projects/ee-simex/assets/classification'
+
 '''
     Config Info
 '''
@@ -57,64 +59,11 @@ ASSET_SIMEX = 'users/jailson/simex/te_amz_legal_exp_simex_2020'
 ADD_NDFI = False
 APPLY_BRIGHT = False
 
-TILES = []
+YEARS = [2022]
 
-TILES_FINISHED = [
-    '21LXF',
-    '21LXG',
-    '21LXH',
-    '21LXJ',
-    '21LXK',
-    '21LXL',
-    #'21LYC',
-    '21LYD',
-    '22MCS',
-    '21NYC',
-    '19MEV',
-    '20MLD',
-    '22LCM',
-    '22MEB',
-    '22NEG',
-    '19MFU',
-    '19LDH',
-    '18MXT',
-    '21MUQ',
-    '20NMK', # trash
-    '22NDL', # trash
-    '21LWK',
-    '21LZK',
-    '21LVC',
-    '21LUJ',
-    '22LCK',
-    '21LWJ',
-    '21LUF',
-    '21KZB',
-    '21KVB',
-    '20LRP',
-    '20LRH',
-    '22LBH',
-    '22LBP',
-    '22LDL',
-    '22LDQ',
-    '21LTD',
-    '21LUK',
-    '20LQJ',
-    '21LVJ',
-    '21LUD',
-    '21LTH',
-    '20LPP',
-    '22LCL',
-    '21LVH',
-    '22LEP',
-    '21LTL',
-    '20LRM',
-    '21LUH',
-    '21LWH',
-    '21LZJ',
-    '22LCP',
-    
-    # gerar pdf da versçai di artugi 
-]
+MONTHS = ['08', '09', '10', '11', '12']
+
+TILES = []
 
 KERNEL_SIZE = 512
 
@@ -122,23 +71,16 @@ NUM_CLASSES = 1
 
 MODEL_PATH = '01_selective_logging/model/model_v5.keras'
 
-OUTPUT_CHIPS = '01_selective_logging/predictions/{}/{}_{}.tif'
+OUTPUT_CHIPS = '01_selective_logging/predictions/{}/{}/{}/{}_{}.tif'
 OUTPUT_TILE = '01_selective_logging/predictions'
 
 '''
 
-    Request Template
-
-
-    - qual a vetorização mais eficiente (spline)
-
-    - salvar área do pixe e área ajustada por poligono
-
-    
+    Request Template    
 
 '''
 
-EXECUTOR = concurrent.futures.ThreadPoolExecutor(max_workers=10)
+EXECUTOR = concurrent.futures.ThreadPoolExecutor(max_workers=30)
 
 
 # image resolution in meters
@@ -195,11 +137,6 @@ FEATURES_INDEX = [
     0, 1, 2,
     3, 4, 5
 ]
-
-
-
-T0 = '2022-08-01'
-T1 = '2022-08-30'
 
 '''
 
@@ -377,7 +314,7 @@ def predict(items):
                 prediction = np.transpose(prediction, (2,0,1))
                 # prediction = np.transpose(data_output, (2,0,1))
 
-                name = OUTPUT_CHIPS.format(k, response['item'][1][0], idx)
+                name = OUTPUT_CHIPS.format(year,month,k,response['item'][1][0], idx)
 
                 print(name)
 
@@ -445,105 +382,79 @@ simex = ee.FeatureCollection(ASSET_SIMEX).filter('nm_estad_1 == "MATO GROSSO"')
 if len(TILES) == 0:
     TILES = ee.FeatureCollection(ASSET_TILES)\
         .filterBounds(roi.geometry())\
-        .filterBounds(simex.geometry())\
         .reduceColumns(ee.Reducer.toList(), ['NAME']).get('list').getInfo()
-
-TILES = list(set(TILES) - set(TILES_FINISHED))
 
 print(len(TILES))
 
 # for k, v in TILES.items():
 
-for k in TILES:
-
-    if not os.path.isdir(f'01_selective_logging/predictions/{k}'):
-        os.mkdir(os.path.abspath(f'01_selective_logging/predictions/{k}'))
-
-
-    grid = ee.FeatureCollection(ASSET_TILES).filter(f'NAME == "{k}"')
-    grid_feat = ee.Feature(grid.first()).set('id', 1)
-    grid_img = ee.FeatureCollection([grid_feat]).reduceToImage(['id'], ee.Reducer.first())
-
-
-    # get centroids
-    seeds = grid_img.sample(region=grid_feat.geometry(), scale=10 * PATCH_SIZE, geometries=True)
-    coords = seeds.reduceColumns(ee.Reducer.toList(), ['.geo']).get('list').getInfo()
-    coords = [x['coordinates'] for x in coords]
-
-
-
-    # if not specified get all scenes from grid
-    # if len(v) == 0:
-    #     col = ee.ImageCollection(ASSET_COLLECTION)\
-    #         .filter(f'MGRS_TILE == "{k}"')\
-    #         .filterDate(T0, T1)
-
-    #     v = col.reduceColumns(ee.Reducer.toList(), ['system:index']).get('list').getInfo()
+for year in YEARS:
     
-    col = ee.ImageCollection(ASSET_COLLECTION)\
-        .filter(f'MGRS_TILE == "{k}"')\
-        .filterDate(T0, T1)
+    year = str(year)
 
-    v = col.reduceColumns(ee.Reducer.toList(), ['system:index']).get('list').getInfo()
+    for k in TILES:
 
-    # identify loaded images
-    loaded = ['_'.join(x.split('/')[-1].split('_')[:3]) 
-                for x in glob(f'{OUTPUT_TILE}/{k}/*')]
-
-    loaded = list(set(loaded))
-
-    list_image_id = [x for x in v if x not in loaded]
-
-    print(len(list_image_id))
-
-    for img_id in list_image_id:
-
-        items = list(zip([img_id] * len(coords), coords))
-        items = enumerate(items)
-
-        # run predictions
-        predict(items)
-
-    '''
-
-    # create mosaic 
-    path_chips = [rasterio.open(x) for x in glob(f'{OUTPUT_TILE}/{k}/*')]
-
-    mosaic, out_trans = merge(path_chips)
-
-    with rasterio.open(
-        f'{OUTPUT_TILE}/{k}_pred.tif',
-        'w',
-        driver = 'COG',
-        count = NUM_CLASSES,
-        height = mosaic.shape[1],
-        width  = mosaic.shape[2],
-        dtype  = mosaic.dtype,
-        crs    = rasterio.crs.CRS.from_epsg(4326),
-        transform = out_trans 
-    ) as dest:
-        dest.write(mosaic)
+        for month in MONTHS:
 
 
+            # identify loaded images from asset
+            list_loaded_cls = ee.ImageCollection(ASSET_CLASSIFICATION)\
+                .filter(f'version == "1"')\
+                .reduceColumns(ee.Reducer.toList(), ['image_id']).get('list').getInfo()
+            
+            tiles_loaded_cls = [x[-5:] for x in list_loaded_cls]
+
+            # if tile is already processed, skip
+            if k in tiles_loaded_cls: continue
+
+            T0 = '{}-{}-{}'.format(year, month, '01')
+            T1 = '{}-{}-{}'.format(year, month, '30')
 
 
+            if not os.path.isdir(f'01_selective_logging/predictions/{year}'):
+                os.mkdir(os.path.abspath(f'01_selective_logging/predictions/{year}'))
+
+            if not os.path.isdir(f'01_selective_logging/predictions/{year}/{month}'):
+                os.mkdir(os.path.abspath(f'01_selective_logging/predictions/{year}/{month}'))
+
+            if not os.path.isdir(f'01_selective_logging/predictions/{year}/{month}/{k}'):
+                os.mkdir(os.path.abspath(f'01_selective_logging/predictions/{year}/{month}/{k}'))
+            else: continue
 
 
-var ASSET_TILES = 'projects/mapbiomas-workspace/AUXILIAR/SENTINEL2/grid_sentinel'
+            grid = ee.FeatureCollection(ASSET_TILES).filter(f'NAME == "{k}"')
+            grid_feat = ee.Feature(grid.first()).set('id', 1)
+            grid_img = ee.FeatureCollection([grid_feat]).reduceToImage(['id'], ee.Reducer.first())
 
-var ASSET_LEGAL_AMAZON = 'users/jailson/brazilian_legal_amazon'
+
+            # get centroids
+            seeds = grid_img.sample(region=grid_feat.geometry(), scale=10 * PATCH_SIZE, geometries=True)
+            coords = seeds.reduceColumns(ee.Reducer.toList(), ['.geo']).get('list').getInfo()
+            coords = [x['coordinates'] for x in coords]
 
 
-var roi = ee.FeatureCollection(ASSET_LEGAL_AMAZON);
-var tiles = ee.FeatureCollection(ASSET_TILES).filterBounds(roi.geometry());
+            col = ee.ImageCollection(ASSET_COLLECTION)\
+                .filter(f'MGRS_TILE == "{k}"')\
+                .filterDate(T0, T1)
 
-print(tiles.size()) - 46.650
+            v = col.reduceColumns(ee.Reducer.toList(), ['system:index']).get('list').getInfo()
 
-    '''
-#
-    ## delete files
-    #for f in glob(f'{OUTPUT_TILE}/{k}/*.tif'):
-    #    os.remove(f)
+            # identify loaded images
+            loaded = ['_'.join(x.split('/')[-1].split('_')[:3]) 
+                        for x in glob(f'01_selective_logging/predictions/{year}/{month}/{k}/*')]
+
+            loaded = list(set(loaded))
+
+            list_image_id = [x for x in v if x not in loaded]
+            list_image_id = [x for x in v if x not in list_loaded_cls]
+
+            for img_id in list_image_id:
+
+                items = list(zip([img_id] * len(coords), coords))
+                items = enumerate(items)
+
+                # run predictions
+                predict(items)
 
 
 

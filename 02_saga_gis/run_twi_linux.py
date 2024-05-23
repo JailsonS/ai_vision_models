@@ -29,20 +29,20 @@ from PySAGA_cmd import (SAGA)
 '''
 
 # your google cloud project
-PROJECT_ID = 'your-project'
+PROJECT_ID = 'sad-deep-learning-274812'
 
 # base path of your input images 
 PATH_INPUT = '02_saga_gis/data/input'
 
 # base path of your output
-PATH_OUTPUT = '02_saga_gis/data/output'
+PATH_OUTPUT = '02_saga_gis/data/ouput'
 
 # locate your .exe saga file
 PATH_SAGA = '/usr/bin/saga_cmd'
 
 # workers to paralell threads
 # depending on you machine, you may increase the number of workers
-EXECUTOR = concurrent.futures.ThreadPoolExecutor(max_workers=4)
+EXECUTOR = concurrent.futures.ThreadPoolExecutor(max_workers=1)
 
 
 ee.Initialize(project=PROJECT_ID)
@@ -62,7 +62,7 @@ saga = SAGA(PATH_SAGA)
 preprocessor = saga / 'ta_hydrology'
 
 # choosing tools.
-topographic_wetness_index = saga / 'ta_hydrology' / 'Topographic Wetness Index (One Step)'
+topographic_wetness_index = saga / 'terrain_analysis' / 'Topographic Wetness Index (One Step)'
 
 # check method's param
 print(topographic_wetness_index.execute(ignore_stderr=True).stdout)
@@ -102,7 +102,7 @@ def get_patch(path):
     try:
 
         twi = topographic_wetness_index(
-            DEM=path,
+            DEM=os.path.abspath(path),
             TWI=output_path,
             FLOW_METHOD=4
         )
