@@ -25,7 +25,7 @@ from numpy.lib.recfunctions import structured_to_unstructured
 from retry import retry
 from glob import glob
 from pprint import pprint
-
+from rasterio.transform import Affine
 
 os.environ['TF_CPP_MIN_LOG_LEVEL'] = '3'
 
@@ -54,7 +54,7 @@ ASSET_UF = 'projects/mapbiomas-workspace/AUXILIAR/estados-2016'
 
 ASSET_SIMEX = 'users/jailson/simex/te_amz_legal_exp_simex_2020'
 
-ASSET_CLASSIFICATION = 'projects/ee-simex/assets/classification'
+ASSET_CLASSIFICATION = 'projects/ee-simex/assets/logging_predictions'
 
 '''
     Config Info
@@ -65,9 +65,15 @@ APPLY_BRIGHT = False
 
 YEARS = [2022]
 
-MONTHS = ['08', '09', '10', '11', '12']
+MONTHS = [
+    '08', 
+    #'09', 
+    #'10', 
+    #'11', 
+    #'12'
+]
 
-TILES = []
+TILES = ['21LYH']
 
 KERNEL_SIZE = 512
 
@@ -255,17 +261,19 @@ def get_patch(items):
     request['grid']['affineTransform']['translateX'] = coords[0] + OFFSET_X
     request['grid']['affineTransform']['translateY'] = coords[1] + OFFSET_Y
 
-    affine = (
-        request['grid']['affineTransform']['scaleX'],
-        request['grid']['affineTransform']['shearX'],
+
+    # criação do objeto Affine usando os parâmetros fornecidos
+    transform = Affine(
+        request['grid']['affineTransform']['scaleX'], 
+        request['grid']['affineTransform']['shearX'], 
         request['grid']['affineTransform']['translateX'],
-        request['grid']['affineTransform']['scaleY'],
         request['grid']['affineTransform']['shearY'],
-        request['grid']['affineTransform']['translateY'],
+        request['grid']['affineTransform']['scaleY'], 
+        request['grid']['affineTransform']['translateY']
     )
 
     # for georeference convertion
-    response['affine'] = affine
+    response['affine'] = transform
     
     try:
         data = np.load(io.BytesIO(ee.data.computePixels(request)))
@@ -306,8 +314,8 @@ def predict(items):
 
                 # it only checks the supposed prediction and skip it if there is no logging
                 prediction = np.copy(probabilities)
-                prediction[prediction < 0.3] = 0
-                prediction[prediction >= 0.3] = 1
+                prediction[prediction < 0.1] = 0
+                prediction[prediction >= 0.1] = 1
 
                 if np.max(prediction[0]) == 0.0 or np.max(prediction[0]) == 0:
                     continue
@@ -339,10 +347,11 @@ def predict(items):
                     width  = prediction.shape[2],
                     dtype  = prediction.dtype,
                     crs    = rasterio.crs.CRS.from_epsg(4326),
-                    transform=rasterio.transform.from_origin(response['item'][1][1][0] + OFFSET_X,
-                                                            response['item'][1][1][1] + OFFSET_Y,
-                                                            SCALE_X,
-                                                            SCALE_Y)
+                    transform=response['affine']
+                    #transform=rasterio.transform.from_origin(response['item'][1][1][0] + OFFSET_X,
+                    #                                        response['item'][1][1][1] + OFFSET_Y,
+                    #                                        SCALE_X,
+                    #                                        SCALE_Y)
                 ) as output:
                     output.write(prediction)
 
@@ -456,6 +465,8 @@ for year in YEARS:
 
             list_image_id = [x for x in v if x not in loaded]
             list_image_id = [x for x in v if x not in list_loaded_cls]
+
+            list_image_id = ['20220809T135721_20220809T140519_T21LYH']
 
             for img_id in list_image_id:
 
