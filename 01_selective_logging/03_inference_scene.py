@@ -60,7 +60,7 @@ ASSET_CLASSIFICATION = 'projects/ee-simex/assets/logging_predictions'
     Config Info
 '''
 
-ADD_NDFI = False
+ADD_NDFI = True
 APPLY_BRIGHT = False
 
 YEARS = [2022]
@@ -79,7 +79,7 @@ KERNEL_SIZE = 512
 
 NUM_CLASSES = 1
 
-MODEL_PATH = '01_selective_logging/model/model_v5.keras'
+MODEL_PATH = '01_selective_logging/model/model_v6.keras'
 
 OUTPUT_CHIPS = '01_selective_logging/predictions/{}/{}/{}/{}_{}.tif'
 OUTPUT_TILE = '01_selective_logging/predictions'
@@ -139,13 +139,19 @@ NEW_BAND_NAMES = [
 ]
 
 FEATURES = [
-    'red_t0','green_t0', 'blue_t0', #'ndfi_t0',
-    'red_t1','green_t1', 'blue_t1', #'ndfi_t1'
+    #'red_t0','green_t0', 'blue_t0', 
+    'ndfi_t0',
+    #'red_t1','green_t1', 'blue_t1', 
+    'ndfi_t1'
 ]
 
+#FEATURES_INDEX = [
+#    0, 1, 2,
+#    3, 4, 5
+#]
+
 FEATURES_INDEX = [
-    0, 1, 2,
-    3, 4, 5
+    0, 1
 ]
 
 '''
@@ -277,6 +283,8 @@ def get_patch(items):
     
     try:
         data = np.load(io.BytesIO(ee.data.computePixels(request)))
+
+        print(data.shape)
     except ee.ee_exception.EEException as e:
         response['error']= e
         pprint(response)
@@ -298,13 +306,14 @@ def predict(items):
 
                 data = structured_to_unstructured(data)
 
-                data_norma = np.stack([normalize_array(data[:,:,x]) for x in FEATURES_INDEX])
-
+                
+                data_norma = np.stack([normalize_array(data[:,:,x]) 
+                                            for x in FEATURES_INDEX]) if not ADD_NDFI else data
 
                 if APPLY_BRIGHT: data_norma = apply_brightness(data_norma)
 
                 data_transposed = np.transpose(data_norma, (1,2,0))
-                data_transposed = np.expand_dims(data_transposed, axis=0)
+                data_transposed = np.expand_dims(data_norma, axis=0)
 
 
                 # add exception here
@@ -314,8 +323,8 @@ def predict(items):
 
                 # it only checks the supposed prediction and skip it if there is no logging
                 prediction = np.copy(probabilities)
-                prediction[prediction < 0.1] = 0
-                prediction[prediction >= 0.1] = 1
+                prediction[prediction < 0.2] = 0
+                prediction[prediction >= 0.2] = 1
 
                 if np.max(prediction[0]) == 0.0 or np.max(prediction[0]) == 0:
                     continue
@@ -348,10 +357,6 @@ def predict(items):
                     dtype  = prediction.dtype,
                     crs    = rasterio.crs.CRS.from_epsg(4326),
                     transform=response['affine']
-                    #transform=rasterio.transform.from_origin(response['item'][1][1][0] + OFFSET_X,
-                    #                                        response['item'][1][1][1] + OFFSET_Y,
-                    #                                        SCALE_X,
-                    #                                        SCALE_Y)
                 ) as output:
                     output.write(prediction)
 
