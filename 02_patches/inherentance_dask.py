@@ -8,6 +8,15 @@ from neo4j import GraphDatabase
 # Configuração do cliente Dask
 client = Client()
 
+
+'''
+
+
+
+
+
+
+
 # Função para processar uma camada e encontrar heranças
 @delayed
 def process_layer(layer, previous_labels, current_id, layer_index):
@@ -108,6 +117,13 @@ def store_in_neo4j(tracking_info, edges, uri, user, password):
 
     driver.close()
 
+
+
+
+
+
+
+
 # Exemplo de uso com mais camadas
 layer1 = np.array([[0, 0, 1, 1, 0],
                    [0, 1, 1, 0, 0],
@@ -177,3 +193,4 @@ def print_heritage(tracking_info, edges):
 
 print("Tracking Info:")
 print_heritage(tracking_info, edges)
+'''
