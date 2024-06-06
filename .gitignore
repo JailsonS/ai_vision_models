@@ -8,3 +8,4 @@ models/__pycache__
 01_selective_logging/metrics_paper.ipynb
 01_selective_logging/config
 01_selective_logging/03_inference_scene_.py
+02_patches/data

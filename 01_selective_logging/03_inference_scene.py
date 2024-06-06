@@ -60,26 +60,26 @@ ASSET_CLASSIFICATION = 'projects/ee-simex/assets/logging_predictions'
     Config Info
 '''
 
-ADD_NDFI = True
+ADD_NDFI = False
 APPLY_BRIGHT = False
 
 YEARS = [2022]
 
 MONTHS = [
     '08', 
-    #'09', 
-    #'10', 
-    #'11', 
-    #'12'
+    '09', 
+    '10', 
+    '11', 
+    '12'
 ]
 
-TILES = ['21LYH']
+TILES = []
 
 KERNEL_SIZE = 512
 
 NUM_CLASSES = 1
 
-MODEL_PATH = '01_selective_logging/model/model_v6.keras'
+MODEL_PATH = '01_selective_logging/model/model_v5.keras'
 
 OUTPUT_CHIPS = '01_selective_logging/predictions/{}/{}/{}/{}_{}.tif'
 OUTPUT_TILE = '01_selective_logging/predictions'
@@ -139,20 +139,20 @@ NEW_BAND_NAMES = [
 ]
 
 FEATURES = [
-    #'red_t0','green_t0', 'blue_t0', 
-    'ndfi_t0',
-    #'red_t1','green_t1', 'blue_t1', 
-    'ndfi_t1'
+    'red_t0','green_t0', 'blue_t0', 
+    #'ndfi_t0',
+    'red_t1','green_t1', 'blue_t1', 
+    #'ndfi_t1'
+    #'gv_t0', 'npv_t0','soil_t0','shade_t0','cloud_t0', 'ndfi_t0',
+    #'gv_t1', 'npv_t1','soil_t1','shade_t1','cloud_t1', 'ndfi_t1'
 ]
-
-#FEATURES_INDEX = [
-#    0, 1, 2,
-#    3, 4, 5
-#]
 
 FEATURES_INDEX = [
-    0, 1
+    0, 1, 2, 
+    3, 4, 5
+    #6, 7, 8, 9, 10, 11
 ]
+
 
 '''
 
@@ -187,8 +187,8 @@ def get_image(items):
     coords = items[1][1]
 
     if ADD_NDFI:
-        t1_band_names = [x + '_t1' for x in NEW_BAND_NAMES + ['ndfi']]
-        t0_band_names = [x + '_t0' for x in NEW_BAND_NAMES + ['ndfi']]
+        t1_band_names = [x + '_t1' for x in NEW_BAND_NAMES + ['ndfi', 'gv', 'soil', 'cloud', 'shade','npv']]
+        t0_band_names = [x + '_t0' for x in NEW_BAND_NAMES + ['ndfi', 'gv', 'soil', 'cloud', 'shade','npv']]
     else:
         t1_band_names = [x + '_t1' for x in NEW_BAND_NAMES]
         t0_band_names = [x + '_t0' for x in NEW_BAND_NAMES]
@@ -204,7 +204,7 @@ def get_image(items):
     if ADD_NDFI:
         image_t1 = get_fractions(image_t1)
         image_t1 = get_ndfi(image_t1)
-        image_t1 = ee.Image(image_t1).select(NEW_BAND_NAMES + ['ndfi'])
+        image_t1 = ee.Image(image_t1).select(NEW_BAND_NAMES + ['ndfi', 'gv', 'soil', 'cloud', 'shade','npv'])
 
     image_t1 = image_t1.rename(t1_band_names)
 
@@ -226,7 +226,7 @@ def get_image(items):
     if ADD_NDFI:
         image_t0 = get_fractions(image_t0)
         image_t0 = get_ndfi(image_t0)
-        image_t0 = ee.Image(image_t0).select(NEW_BAND_NAMES + ['ndfi'])
+        image_t0 = ee.Image(image_t0).select(NEW_BAND_NAMES + ['ndfi', 'gv', 'soil', 'cloud', 'shade','npv'])
         
     image_t0 = image_t0.rename(t0_band_names)
 
@@ -283,8 +283,6 @@ def get_patch(items):
     
     try:
         data = np.load(io.BytesIO(ee.data.computePixels(request)))
-
-        print(data.shape)
     except ee.ee_exception.EEException as e:
         response['error']= e
         pprint(response)
@@ -308,12 +306,15 @@ def predict(items):
 
                 
                 data_norma = np.stack([normalize_array(data[:,:,x]) 
-                                            for x in FEATURES_INDEX]) if not ADD_NDFI else data
+                                            for x in FEATURES_INDEX]) 
 
-                if APPLY_BRIGHT: data_norma = apply_brightness(data_norma)
+                if APPLY_BRIGHT: 
+                    data_norma = apply_brightness(data_norma)
 
+                
                 data_transposed = np.transpose(data_norma, (1,2,0))
-                data_transposed = np.expand_dims(data_norma, axis=0)
+                
+                data_transposed = np.expand_dims(data_transposed, axis=0)
 
 
                 # add exception here
@@ -471,8 +472,6 @@ for year in YEARS:
             list_image_id = [x for x in v if x not in loaded]
             list_image_id = [x for x in v if x not in list_loaded_cls]
 
-            list_image_id = ['20220809T135721_20220809T140519_T21LYH']
-
             for img_id in list_image_id:
 
                 items = list(zip([img_id] * len(coords), coords))
@@ -480,6 +479,8 @@ for year in YEARS:
 
                 # run predictions
                 predict(items)
+
+                print(f'image {img_id} processed')
 
             gc.collect()
 
