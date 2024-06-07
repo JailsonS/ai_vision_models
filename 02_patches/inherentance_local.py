@@ -1,4 +1,5 @@
 import numpy as np
+import rasterio
 
 from skimage.measure import label
 from scipy.ndimage import find_objects
@@ -21,25 +22,28 @@ def track_objects(stack):
             for obj_id in range(1, num_features + 1):
                 tracking_info[current_id] = {'layer': i, 'size': np.sum(labeled_array == obj_id)}
                 current_id += 1
+                
             continue
 
         # Identificar objetos na camada atual
         labeled_array, num_features = label(current_labels, return_num=True)
+        
         objects_current = find_objects(labeled_array)
         objects_previous = find_objects(previous_labels)
 
         for current_obj_id in range(1, num_features + 1):
             current_slice = objects_current[current_obj_id - 1]
-            if current_slice is None:
-                continue
+
+            if current_slice is None: continue
+
             current_object = labeled_array[current_slice] == current_obj_id
 
             # Verificar interseção com objetos da camada anterior
             parents = []
             for previous_obj_id in range(1, len(objects_previous) + 1):
                 previous_slice = objects_previous[previous_obj_id - 1]
-                if previous_slice is None:
-                    continue
+                
+                if previous_slice is None: continue
 
                 # Calcular a interseção dos slices
                 intersection_slice = tuple(
@@ -49,8 +53,7 @@ def track_objects(stack):
                 )
 
                 # Verificar se a interseção é válida (dimensão > 0)
-                if any(s.start >= s.stop for s in intersection_slice):
-                    continue
+                if any(s.start >= s.stop for s in intersection_slice): continue
 
                 # Extrair as regiões de interseção
                 current_intersection = current_object[tuple(
@@ -82,24 +85,9 @@ def track_objects(stack):
     return tracking_info, edges
 
 # Exemplo de uso com mais camadas:
-layer1 = np.array([[0, 0, 1, 1, 0],
-                   [0, 1, 1, 0, 0],
-                   [1, 0, 0, 1, 1],
-                   [0, 0, 1, 1, 0],
-                   [1, 1, 0, 0, 0]])
-
-layer2 = np.array([[0, 1, 1, 0, 0],
-                   [1, 1, 0, 0, 0],
-                   [0, 0, 0, 1, 1],
-                   [1, 1, 0, 0, 0],
-                   [0, 0, 1, 1, 1]])
-
-layer3 = np.array([[0, 1, 0, 0, 0],
-                   [1, 1, 0, 1, 1],
-                   [0, 0, 0, 1, 1],
-                   [0, 1, 1, 0, 0],
-                   [0, 0, 1, 1, 1]])
-
+layer1 = rasterio.open('02_patches/data/examples_1995.tif').read()[0]
+layer2 = rasterio.open('02_patches/data/examples_2000.tif').read()[0]
+layer3 = rasterio.open('02_patches/data/examples_2022.tif').read()[0]
 
 
 stack = [layer1, layer2, layer3]
@@ -153,7 +141,7 @@ def print_heritage(tracking_info, edges):
     for obj_id, info in sorted(layers[initial_layer]):
         print_heritage_recursive(obj_id, heritage_dict)
 
-print("Tracking Info:")
-print_heritage(tracking_info, edges)
+#print("Tracking Info:")
+#print_heritage(tracking_info, edges)
 
-pprint(nodes)
+print(len(nodes))
