@@ -3,7 +3,7 @@ from skimage.measure import label
 from scipy.ndimage import find_objects
 from collections import defaultdict
 
-class ClassifyPatches():
+class ClassifyPatches:
 
     obj_id = 1
 
@@ -64,6 +64,16 @@ class ClassifyPatches():
     
     def classify(self):
         for t, array in enumerate(self.stack_binary):
+
+            
+
+            proj = {
+                'crs':array.crs,
+                'transform':array.transform
+            }
+
+            array = array.read()[0]
+
             labeled_array, num_features = label(array, return_num=True, connectivity=1)
             current_objects = self.update_object_map(labeled_array, {})
             if t == 0:
@@ -85,6 +95,6 @@ class ClassifyPatches():
             for obj_idx, obj_id in current_objects.items():
                 result_array[labeled_array == obj_idx] = obj_id
             
-            self.result_arrays.append(result_array)
+            self.result_arrays.append([result_array, proj])
         
         return self.result_arrays, parent_map, self.history
