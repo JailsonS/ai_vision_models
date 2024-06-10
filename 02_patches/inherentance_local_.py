@@ -5,6 +5,73 @@ from collections import defaultdict
 from neo4j import GraphDatabase
 import rasterio
 
+from utils.Fragmentation import ClassifyPatches
+
+
+'''
+    Config Info
+'''
+
+PATH_IMAGES = ''
+
+PATH_OUTPUT = ''
+
+# Conectar ao Neo4J e inserir dados
+URI_DB = "bolt://localhost:7687"
+
+
+'''
+
+    Input Data
+
+'''
+
+
+
+#layer1 = rasterio.open('02_patches/data/examples_1995.tif').read()[0]
+#layer2 = rasterio.open('02_patches/data/examples_2000.tif').read()[0]
+#layer3 = rasterio.open('02_patches/data/examples_2022.tif').read()[0]
+
+
+arrays = [
+    np.array([
+        [0, 0, 1, 1, 0],
+        [0, 1, 1, 0, 0],
+        [1, 0, 0, 1, 1],
+        [0, 0, 1, 1, 0],
+        [1, 1, 0, 0, 0]
+    ]),
+    np.array([
+        [0, 1, 1, 0, 0],
+        [1, 1, 0, 0, 0],
+        [0, 0, 0, 1, 1],
+        [1, 1, 0, 0, 0],
+        [0, 0, 1, 1, 1]
+    ]),
+    np.array([
+        [0, 1, 0, 0, 0],
+        [1, 1, 0, 1, 1],
+        [0, 0, 0, 1, 1],
+        [0, 1, 1, 0, 0],
+        [0, 0, 1, 1, 1]
+    ]),
+    np.array([
+        [0, 1, 0, 0, 0],
+        [1, 1, 0, 1, 1],
+        [0, 0, 0, 1, 1],
+        [0, 1, 1, 1, 1],
+        [0, 0, 1, 1, 1]
+    ]),
+]
+
+
+
+
+
+'''
+    Helpers
+'''
+
 def classify_objects(arrays):
     
     obj_id = 1
@@ -73,7 +140,7 @@ def classify_objects(arrays):
     
     return result_arrays, parent_map, history
 
-# Função para preparar dados para Neo4J
+# função para preparar dados para Neo4J
 def prepare_data_for_neo4j(history, parent_map):
     nodes = []
     relationships = []
@@ -85,7 +152,7 @@ def prepare_data_for_neo4j(history, parent_map):
                 relationships.append((parent_id, obj_id, t))
     return nodes, relationships
 
-# Função para imprimir herança dos objetos
+# função para imprimir herança dos objetos
 def print_object_heritage(history, parent_map):
     for t, (labeled_array, objects) in enumerate(history):
         print(f"Tempo {t}:")
@@ -94,55 +161,6 @@ def print_object_heritage(history, parent_map):
             print(f"Objeto {obj_id} (Parent: {parent_id})")
 
 
-#layer1 = rasterio.open('02_patches/data/examples_1995.tif').read()[0]
-#layer2 = rasterio.open('02_patches/data/examples_2000.tif').read()[0]
-#layer3 = rasterio.open('02_patches/data/examples_2022.tif').read()[0]
-
-
-# Exemplo de uso
-
-arrays = [
-    np.array([
-        [0, 0, 1, 1, 0],
-        [0, 1, 1, 0, 0],
-        [1, 0, 0, 1, 1],
-        [0, 0, 1, 1, 0],
-        [1, 1, 0, 0, 0]
-    ]),
-    np.array([
-        [0, 1, 1, 0, 0],
-        [1, 1, 0, 0, 0],
-        [0, 0, 0, 1, 1],
-        [1, 1, 0, 0, 0],
-        [0, 0, 1, 1, 1]
-    ]),
-    np.array([
-        [0, 1, 0, 0, 0],
-        [1, 1, 0, 1, 1],
-        [0, 0, 0, 1, 1],
-        [0, 1, 1, 0, 0],
-        [0, 0, 1, 1, 1]
-    ]),
-    np.array([
-        [0, 1, 0, 0, 0],
-        [1, 1, 0, 1, 1],
-        [0, 0, 0, 1, 1],
-        [0, 1, 1, 1, 1],
-        [0, 0, 1, 1, 1]
-    ]),
-]
-
-
-# arrays = [layer1, layer2, layer3]
-
-classified_arrays, parent_map, history = classify_objects(arrays)
-# print_object_heritage(history, parent_map)
-nodes, relationships = prepare_data_for_neo4j(history, parent_map)
-
-'''
-# Conectar ao Neo4J e inserir dados
-uri = "bolt://localhost:7687"
-driver = GraphDatabase.driver(uri, auth=("neo4j", "password"))
 
 def insert_data_into_neo4j(nodes, relationships):
     with driver.session() as session:
@@ -162,11 +180,41 @@ def create_relationships(tx, relationships):
         """, parent_id=parent_id, child_id=child_id, time=t)
 
 
-insert_data_into_neo4j(nodes, relationships)
-driver.close()
+
+
+'''
+    Main Running
 '''
 
 
-# Print final classified arrays
+frag = ClassifyPatches(arrays)
+classified_arrays, parent_map, history = frag.classify()
+
+# print_object_heritage(history, parent_map)
+
+
+
+# print final classified arrays
 for t, array in enumerate(classified_arrays):
     print(f"Classified array at time {t}:\n{array}")
+
+
+
+'''
+    Connect to Database
+'''
+
+
+#driver = GraphDatabase.driver(URI_DB, auth=("neo4j", "password"))
+#nodes, relationships = prepare_data_for_neo4j(history, parent_map)
+
+#insert_data_into_neo4j(nodes, relationships)
+#driver.close()
+
+
+
+'''
+
+
+'''
+
