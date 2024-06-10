@@ -162,10 +162,6 @@ def print_object_heritage(history, parent_map):
 
 
 
-def insert_data_into_neo4j(nodes, relationships):
-    with driver.session() as session:
-        session.write_transaction(create_nodes, nodes)
-        session.write_transaction(create_relationships, relationships)
 
 def create_nodes(tx, nodes):
     for node_id, t in nodes:
@@ -208,7 +204,10 @@ for t, array in enumerate(classified_arrays):
 #driver = GraphDatabase.driver(URI_DB, auth=("neo4j", "password"))
 #nodes, relationships = prepare_data_for_neo4j(history, parent_map)
 
-#insert_data_into_neo4j(nodes, relationships)
+#with driver.session() as session:
+#    session.write_transaction(create_nodes, nodes)
+#    session.write_transaction(create_relationships, relationships)
+
 #driver.close()
 
 
