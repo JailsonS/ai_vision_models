@@ -3,8 +3,10 @@ from skimage.measure import label
 from scipy.ndimage import find_objects
 from collections import defaultdict
 from neo4j import GraphDatabase
+import rasterio
 
 def classify_objects(arrays):
+    
     obj_id = 1
     parent_map = {}  # Map object id to its parent
     obj_map = {}  # Map object id to its slice
@@ -30,17 +32,21 @@ def classify_objects(arrays):
     def find_connected_objects(prev_array, current_array):
         connections = defaultdict(set)
         for prev_label in np.unique(prev_array):
-            if prev_label == 0:
-                continue
+
+            if prev_label == 0: continue
+
             prev_mask = prev_array == prev_label
             overlap_labels = current_array[prev_mask]
             overlap_labels = overlap_labels[overlap_labels != 0]
             unique_labels = np.unique(overlap_labels)
+            
             for label in unique_labels:
                 connections[label].add(prev_label)
+        
         return connections
 
     result_arrays = []
+    
     for t, array in enumerate(arrays):
         labeled_array, num_features = label(array, return_num=True, connectivity=1)
         current_objects = update_object_map(labeled_array, {})
@@ -59,8 +65,10 @@ def classify_objects(arrays):
 
         history.append((labeled_array, current_objects))
         result_array = np.zeros_like(labeled_array)
+        
         for obj_idx, obj_id in current_objects.items():
             result_array[labeled_array == obj_idx] = obj_id
+        
         result_arrays.append(result_array)
     
     return result_arrays, parent_map, history
@@ -85,7 +93,14 @@ def print_object_heritage(history, parent_map):
             parent_id = parent_map.get(obj_id, None)
             print(f"Objeto {obj_id} (Parent: {parent_id})")
 
+
+#layer1 = rasterio.open('02_patches/data/examples_1995.tif').read()[0]
+#layer2 = rasterio.open('02_patches/data/examples_2000.tif').read()[0]
+#layer3 = rasterio.open('02_patches/data/examples_2022.tif').read()[0]
+
+
 # Exemplo de uso
+
 arrays = [
     np.array([
         [0, 0, 1, 1, 0],
@@ -117,9 +132,12 @@ arrays = [
     ]),
 ]
 
-classified_arrays, parent_map, history = classify_objects(arrays)
-print_object_heritage(history, parent_map)
 
+# arrays = [layer1, layer2, layer3]
+
+classified_arrays, parent_map, history = classify_objects(arrays)
+# print_object_heritage(history, parent_map)
+nodes, relationships = prepare_data_for_neo4j(history, parent_map)
 
 '''
 # Conectar ao Neo4J e inserir dados
@@ -143,10 +161,12 @@ def create_relationships(tx, relationships):
         CREATE (p)-[:PARENT_OF]->(c)
         """, parent_id=parent_id, child_id=child_id, time=t)
 
-nodes, relationships = prepare_data_for_neo4j(history, parent_map)
+
 insert_data_into_neo4j(nodes, relationships)
 driver.close()
 '''
+
+
 # Print final classified arrays
 for t, array in enumerate(classified_arrays):
     print(f"Classified array at time {t}:\n{array}")
