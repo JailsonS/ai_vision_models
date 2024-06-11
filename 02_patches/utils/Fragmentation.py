@@ -74,12 +74,12 @@ class ClassifyPatches:
     def classify(self):
         for t, array in enumerate(self.stack_binary):
             
-            proj = ''
-            # proj = {
-            #     'crs':array.crs,
-            #     'transform':array.transform
-            # }
-            # array = array.read()[0]
+
+            proj = {
+                'crs':array.crs,
+                'transform':array.transform
+            }
+            array = array.read()[0]
 
             
             # 1. label binary arrays
@@ -96,7 +96,7 @@ class ClassifyPatches:
                 
                 # 3. return the current labels the intersects the previous ones (connections)
                 connections = self.find_connected_objects(prev_labeled_array, labeled_array)
-                
+
                 for curr_label, prev_labels in connections.items():
                     # if the current patch/obj only intersects one previous, it keep the previous ID
                     if len(prev_labels) == 1:
