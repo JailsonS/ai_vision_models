@@ -17,12 +17,11 @@ from utils.Fragmentation import ClassifyPatches
 '''
 
 PATH_IMAGES = ''
-
 PATH_OUTPUT = ''
 
-# Conectar ao Neo4J e inserir dados
-URI_DB = "bolt://localhost:7687"
-
+URI = "bolt://localhost:7687"
+USERNAME = "neo4j"
+PSW = "your_password"  # Substitua por sua senha
 
 '''
 
@@ -30,12 +29,10 @@ URI_DB = "bolt://localhost:7687"
 
 '''
 
-
-
 layer1 = rasterio.open('02_patches/data/examples_1995.tif')
 layer2 = rasterio.open('02_patches/data/examples_2000.tif')
 layer3 = rasterio.open('02_patches/data/examples_2022.tif')
-# 
+
 arrays = [layer1,layer2,layer3]
 
 
@@ -99,7 +96,7 @@ def track_heritage(arrays):
 
 def ingest_data_to_neo4j(data):
     # Conexão com o banco de dados Neo4j
-    driver = GraphDatabase.driver(uri, auth=(username, password))
+    driver = GraphDatabase.driver(URI, auth=(USERNAME, PSW))
     with driver.session() as session:
         # Criar nós para cada camada e patch
         for position_layer, (parent_info, child_info) in enumerate(data):
@@ -131,6 +128,8 @@ def ingest_data_to_neo4j(data):
     
     driver.close()
 
+
+
 '''
     Main Running
 '''
@@ -143,17 +142,14 @@ result = track_heritage(classified_arrays)
 
 pprint(result)
 
+
 '''
 for t, array in enumerate(classified_arrays):
-    
+
     data = np.expand_dims(array[0], axis=0)
     proj = array[1]
 
     print(f"Classified array at time {t}:\n{array[0]}")
-'''
-
-'''
-for t, array in enumerate(classified_arrays):
     
     data = np.expand_dims(array[0], axis=0)
     proj = array[1]
@@ -184,17 +180,7 @@ for t, array in enumerate(classified_arrays):
 '''
 
 
-#driver = GraphDatabase.driver(URI_DB, auth=("neo4j", "password"))
-# nodes, relationships = prepare_data_for_neo4j(history, parent_map)
-
-#with driver.session() as session:
-#    session.write_transaction(create_nodes, nodes)
-#    session.write_transaction(create_relationships, relationships)
-
-#driver.close()
-
-'''
 
 
-'''
+
 
