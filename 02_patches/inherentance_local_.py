@@ -76,42 +76,6 @@ arrays = [
     Helpers
 '''
 
-# função para preparar dados para Neo4J
-def prepare_data_for_neo4j(history, parent_map):
-    nodes = []
-    relationships = []
-    for t, (labeled_array, objects) in enumerate(history):
-        for obj_idx, obj_id in objects.items():
-            nodes.append((obj_id, t))
-            parent_id = parent_map.get(obj_id)
-            if parent_id and parent_id != obj_id:
-                relationships.append((parent_id, obj_id, t))
-    return nodes, relationships
-
-# função para imprimir herança dos objetos
-def print_object_heritage(history, parent_map):
-    for t, (labeled_array, objects) in enumerate(history):
-        print(f"Tempo {t}:")
-        for obj_idx, obj_id in objects.items():
-            parent_id = parent_map.get(obj_id, None)
-            print(f"Objeto {obj_id} (Parent: {parent_id})")
-
-
-
-
-def create_nodes(tx, nodes):
-    for node_id, t in nodes:
-        tx.run("CREATE (n:Object {id: $id, time: $time})", id=node_id, time=t)
-
-def create_relationships(tx, relationships):
-    for parent_id, child_id, t in relationships:
-        tx.run("""
-        MATCH (p:Object {id: $parent_id, time: $time})
-        MATCH (c:Object {id: $child_id, time: $time})
-        CREATE (p)-[:PARENT_OF]->(c)
-        """, parent_id=parent_id, child_id=child_id, time=t)
-
-
 
 
 '''
@@ -120,7 +84,7 @@ def create_relationships(tx, relationships):
 
 
 frag = ClassifyPatches(arrays)
-classified_arrays, parent_map, history = frag.classify()
+classified_arrays = frag.classify()
 
 # print_object_heritage(history, parent_map)
 

@@ -116,7 +116,7 @@ class ClassifyPatches:
             # 5. update zeros based on dict objects
             for obj_idx, obj_id in current_objects.items():
                 result_array[labeled_array == obj_idx] = obj_id
-            
+
             self.result_arrays.append([result_array, proj])
         
-        return self.result_arrays, parent_map, self.history
+        return self.result_arrays
