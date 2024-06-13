@@ -7,21 +7,28 @@ from skimage.measure import label
 from scipy.ndimage import find_objects
 from collections import defaultdict
 from neo4j import GraphDatabase
-
+from glob import glob
 
 from utils.Fragmentation import ClassifyPatches
 
+# tempo de vida dos fragmentos
+
+# perda de área dos fragmentos parent
+
+# ganho de área dos fragmentos parent
+
+# número de fragmentos gerados a partir de conexões
 
 '''
     Config Info
 '''
 
-PATH_IMAGES = ''
-PATH_OUTPUT = ''
+PATH_IMAGES = '02_patches/data'
+PATH_OUTPUT = '02_patches/data'
 
-URI = "bolt://localhost:7687"
+URI = "neo4j+s://18dd280e.databases.neo4j.io"
 USERNAME = "neo4j"
-PSW = "your_password"  # Substitua por sua senha
+PSW = "KZ9mxC2yA8abxd5-5HsT_92tAPBodSKD1P1ZzrWETI0"  # Substitua por sua senha
 
 '''
 
@@ -29,12 +36,10 @@ PSW = "your_password"  # Substitua por sua senha
 
 '''
 
-layer1 = rasterio.open('02_patches/data/examples_1995.tif')
-layer2 = rasterio.open('02_patches/data/examples_2000.tif')
-layer3 = rasterio.open('02_patches/data/examples_2022.tif')
 
-arrays = [layer1,layer2,layer3]
+arrays = [rasterio.open(x) for x in glob(f'{PATH_IMAGES}/examples*')]
 
+print(list(glob(f'{PATH_IMAGES}/forest*')))
 
 '''
     Helpers
@@ -76,58 +81,54 @@ def track_heritage(arrays):
             next_mask = next_layer == next_id
             count_next = np.sum(next_mask)
             
-            # Find the parent regions in the current layer
+            # find the parent regions in the current layer
             overlapping_ids, counts = np.unique(current_layer[next_mask], return_counts=True)
             for curr_id, count in zip(overlapping_ids, counts):
                 
                 if curr_id == 0: continue
                 
-                # Check if this tuple already exists in result
+                # check if this tuple already exists in result
                 if not any(entry == (i, (curr_id, np.sum(current_layer == curr_id)), (next_id, count)) for entry in result):
                     result.append((i, (curr_id, np.sum(current_layer == curr_id)), (next_id, count)))
                 
-            # Find gained values if no overlap
+            # find gained values if no overlap
             if len(overlapping_ids) == 0:
                 result.append((i, (None, 0), (next_id, count_next)))
     
     return result
 
+# (0, (1, 132), (1, 130))
+# (0, (2, 37879), (2, 8961))
+# (0, (2, 37879), (1274, 13))
 
+class Neo4jHandler:
+    def __init__(self, uri, user, password):
+        self.driver = GraphDatabase.driver(uri, auth=(user, password))
 
-def ingest_data_to_neo4j(data):
-    # Conexão com o banco de dados Neo4j
-    driver = GraphDatabase.driver(URI, auth=(USERNAME, PSW))
-    with driver.session() as session:
-        # Criar nós para cada camada e patch
-        for position_layer, (parent_info, child_info) in enumerate(data):
-            parent_id, parent_count = parent_info
-            child_id, child_count = child_info
-            
-            # Criação de nós para os patches
-            session.run(
-                "MERGE (p:Patch {layer: $layer, id: $parent_id, count: $parent_count}) "
-                "MERGE (c:Patch {layer: $layer, id: $child_id, count: $child_count})",
-                layer=position_layer,
-                parent_id=parent_id,
-                parent_count=parent_count,
-                child_id=child_id,
-                child_count=child_count
-            )
-            
-            # Criação de relação de herança entre os patches, se houver
-            if child_id:
-                session.run(
-                    "MATCH (p:Patch {layer: $parent_layer, id: $parent_id}) "
-                    "MATCH (c:Patch {layer: $child_layer, id: $child_id}) "
-                    "MERGE (p)-[:INHERITS]->(c)",
-                    parent_layer=position_layer,
-                    parent_id=parent_id,
-                    child_layer=position_layer + 1,
-                    child_id=child_id
-                )
-    
-    driver.close()
+    def close(self):
+        self.driver.close()
 
+    def insert_nodes_and_relationship(self, node_data):
+        with self.driver.session() as session:
+            for data in node_data:
+                position_layer, parent_info, child_info = data
+                parent_id, parent_count = parent_info
+                child_id, child_count = child_info
+
+                session.write_transaction(self._create_and_link_nodes, position_layer, parent_id, parent_count, child_id, child_count)
+
+    @staticmethod
+    def _create_and_link_nodes(tx, position_layer, parent_id, parent_count, child_id, child_count):
+        query = (
+            "MERGE (p:Node {id: $parent_id}) "
+            "ON CREATE SET p.count = $parent_count, p.position_layer = $position_layer "
+            "ON MATCH SET p.position_layer = $position_layer "
+            "MERGE (c:Node {id: $child_id}) "
+            "ON CREATE SET c.count = $child_count, c.position_layer = $position_layer "
+            "ON MATCH SET c.position_layer = $position_layer "
+            "MERGE (p)-[:RELATES_TO]->(c)"
+        )
+        tx.run(query, position_layer=position_layer, parent_id=parent_id, parent_count=parent_count, child_id=child_id, child_count=child_count)
 
 
 '''
@@ -138,10 +139,11 @@ def ingest_data_to_neo4j(data):
 frag = ClassifyPatches(arrays)
 classified_arrays = frag.classify()
 
+
 result = track_heritage(classified_arrays)
 
-pprint(result)
-
+for i in result[:3]:
+    print(i)
 
 '''
 for t, array in enumerate(classified_arrays):
@@ -156,7 +158,7 @@ for t, array in enumerate(classified_arrays):
 
     print(f"Classified array at time {t}:\n{array}")
     
-    name = f'{t}_output.tif'
+    name = f'{PATH_OUTPUT}/{t}_output.tif'
 
     with rasterio.open(
         name,
@@ -172,6 +174,7 @@ for t, array in enumerate(classified_arrays):
         output.write(data)
 
     print(f'shape {data.shape}')
+    
 '''
 
 
@@ -179,7 +182,9 @@ for t, array in enumerate(classified_arrays):
     Connect to Database
 '''
 
-
+neo4j_handler = Neo4jHandler(URI, USERNAME, PSW)
+neo4j_handler.insert_nodes_and_relationship(result)
+neo4j_handler.close()
 
 
 
