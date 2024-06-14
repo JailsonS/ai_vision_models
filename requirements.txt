@@ -6,7 +6,7 @@ seaborn
 rasterio
 scikit-learn
 gcloud
-PySAGA-cmd
+#PySAGA-cmd
 #tensorflow==2.14.0
 #tensorflow==2.16.1
 openpyxl
