@@ -120,3 +120,21 @@ class ClassifyPatches:
             self.result_arrays.append([result_array, proj])
         
         return self.result_arrays
+
+
+
+
+
+
+'''
+# Inicializamos o array de distâncias com o mesmo shape que labels
+distances = np.zeros_like(labels, dtype=float)
+
+# Iteramos sobre cada label e calculamos a transformada de distância
+for label in np.unique(labels):
+    if label == 0:
+        continue  # Ignorar background
+    mask = labels == label
+    distances[mask] = ndi.distance_transform_edt(~mask)[mask]
+
+'''

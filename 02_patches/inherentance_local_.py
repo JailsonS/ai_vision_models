@@ -30,6 +30,17 @@ URI = "neo4j+s://18dd280e.databases.neo4j.io"
 USERNAME = "neo4j"
 PSW = "KZ9mxC2yA8abxd5-5HsT_92tAPBodSKD1P1ZzrWETI0"  # Substitua por sua senha
 
+YEARS = [
+    1985, 1986, 1987, 1988, 1989,
+    1990, 1991, 1992, 1993, 1994,
+    1995, 1996, 1997, 1998, 1999,
+    2000, 2001, 2002, 2003, 2004,
+    2005, 2006, 2007, 2008, 2009,
+    2010, 2011, 2012, 2013, 2014,
+    2015, 2016, 2017, 2018, 2019,
+    2020, 2021, 2022
+]
+
 '''
 
     Input Data
@@ -37,9 +48,8 @@ PSW = "KZ9mxC2yA8abxd5-5HsT_92tAPBodSKD1P1ZzrWETI0"  # Substitua por sua senha
 '''
 
 
-arrays = [rasterio.open(x) for x in glob(f'{PATH_IMAGES}/examples*')]
+arrays = [rasterio.open(x) for x in glob(f'{PATH_IMAGES}/forest*')]
 
-print(list(glob(f'{PATH_IMAGES}/forest*')))
 
 '''
     Helpers
@@ -115,20 +125,44 @@ class Neo4jHandler:
                 parent_id, parent_count = parent_info
                 child_id, child_count = child_info
 
-                session.write_transaction(self._create_and_link_nodes, position_layer, parent_id, parent_count, child_id, child_count)
+                idx = position_layer
+                idx_next = idx + 1 if position_layer > 0 else 0
+
+                current_year = YEARS[idx]
+                next_year = YEARS[idx_next] if idx_next > 0 else YEARS[idx]
+
+                session.write_transaction(
+                    self._create_and_link_nodes, 
+                    position_layer, 
+                    parent_id, 
+                    parent_count, 
+                    child_id, 
+                    child_count,
+                    current_year,
+                    next_year
+                )
 
     @staticmethod
-    def _create_and_link_nodes(tx, position_layer, parent_id, parent_count, child_id, child_count):
+    def _create_and_link_nodes(tx, position_layer, parent_id, parent_count, child_id, child_count, current_year, next_year):
         query = (
             "MERGE (p:Node {id: $parent_id}) "
-            "ON CREATE SET p.count = $parent_count, p.position_layer = $position_layer "
+            "ON CREATE SET p.count = $parent_count, p.position_layer = $position_layer, p.year = $current_year"
             "ON MATCH SET p.position_layer = $position_layer "
             "MERGE (c:Node {id: $child_id}) "
-            "ON CREATE SET c.count = $child_count, c.position_layer = $position_layer "
+            "ON CREATE SET c.count = $child_count, c.position_layer = $position_layer, p.year = $next_year "
             "ON MATCH SET c.position_layer = $position_layer "
             "MERGE (p)-[:RELATES_TO]->(c)"
         )
-        tx.run(query, position_layer=position_layer, parent_id=parent_id, parent_count=parent_count, child_id=child_id, child_count=child_count)
+        tx.run(
+            query, 
+            position_layer=position_layer, 
+            parent_id=parent_id, 
+            parent_count=parent_count, 
+            child_id=child_id, 
+            child_count=child_count,
+            current_year=current_year,
+            next_year=next_year
+        )
 
 
 '''
