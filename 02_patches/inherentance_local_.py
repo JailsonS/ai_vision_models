@@ -9,7 +9,6 @@ from collections import defaultdict
 from neo4j import GraphDatabase
 from glob import glob
 
-from utils.Fragmentation import ClassifyPatches
 
 # tempo de vida dos fragmentos
 
