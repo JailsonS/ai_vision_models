@@ -90,7 +90,7 @@ OUTPUT_TILE = '01_selective_logging/predictions'
 
 '''
 
-EXECUTOR = concurrent.futures.ThreadPoolExecutor(max_workers=10)
+EXECUTOR = concurrent.futures.ThreadPoolExecutor(max_workers=40)
 #EXECUTOR = concurrent.futures.ProcessPoolExecutor(max_workers=10)
 
 # image resolution in meters
@@ -166,6 +166,16 @@ def log_memory_usage():
     process = psutil.Process(os.getpid())
     mem_info = process.memory_info()
     logger.info(f"Memory Usage: RSS={mem_info.rss / (1024 ** 2):.2f} MB, VMS={mem_info.vms / (1024 ** 2):.2f} MB")
+
+
+def check_memory_usage(threshold=2):
+    mem_info = psutil.virtual_memory()
+    available_memory_gb = mem_info.available / (1024 ** 3)
+    print(f'availabel memo {available_memory_gb}')
+    #if available_memory_gb < threshold:
+    #    logger.warning(f"Memory usage is high. Available memory: {available_memory_gb:.2f} GB. Restarting...")
+    #    sys.exit(1)
+
 
 
 def normalize_array(array):
@@ -297,6 +307,7 @@ def predict(items):
         future_to_point = {EXECUTOR.submit(get_patch, item): item for item in items}
 
         for future in concurrent.futures.as_completed(future_to_point):
+            check_memory_usage()
             
             data, response, idx = future.result()
 
@@ -420,6 +431,7 @@ for year in YEARS:
 
         for month in MONTHS:
 
+            check_memory_usage()  # Check memory at the start of each month loop
 
             # identify loaded images from asset
             list_loaded_cls = ee.ImageCollection(ASSET_CLASSIFICATION)\
