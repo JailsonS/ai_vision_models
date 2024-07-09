@@ -9,9 +9,17 @@ var mb = ee.Image('projects/mapbiomas-workspace/public/collection8/mapbiomas_col
 
 var collection = ee.ImageCollection(asset)
 
+var collectionLoaded = ee.ImageCollection(assetOutput) 
+
 var image = collection.reduce(ee.Reducer.sum());
 
-var ids = collection.reduceColumns(ee.Reducer.toList(), ['image_id']).get('list').getInfo();
+
+var idsLoaded = collectionLoaded.reduceColumns(ee.Reducer.toList(), ['image_id']).get('list').getInfo();
+
+var ids = collection
+    .filter(ee.Filter.inList('image_id', idsLoaded).not())
+    .reduceColumns(ee.Reducer.toList(), ['image_id'])
+    .get('list').getInfo();
 
 
 

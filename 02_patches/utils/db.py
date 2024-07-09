@@ -7,6 +7,7 @@ class Neo4jHandler:
     def close(self):
         self.driver.close()
 
+    '''
     def insert_nodes_and_relationship(self, node_data):
         with self.driver.session() as session:
             for data in node_data:
@@ -30,6 +31,7 @@ class Neo4jHandler:
                     current_year,
                     next_year
                 )
+        '''
 
     @staticmethod
     def _create_and_link_nodes(tx, position_layer, parent_id, parent_count, child_id, child_count, current_year, next_year):

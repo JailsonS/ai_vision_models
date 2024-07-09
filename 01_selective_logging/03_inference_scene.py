@@ -90,7 +90,7 @@ OUTPUT_TILE = '01_selective_logging/predictions'
 
 '''
 
-EXECUTOR = concurrent.futures.ThreadPoolExecutor(max_workers=40)
+EXECUTOR = concurrent.futures.ThreadPoolExecutor(max_workers=20)
 #EXECUTOR = concurrent.futures.ProcessPoolExecutor(max_workers=10)
 
 # image resolution in meters
@@ -168,7 +168,7 @@ def log_memory_usage():
     logger.info(f"Memory Usage: RSS={mem_info.rss / (1024 ** 2):.2f} MB, VMS={mem_info.vms / (1024 ** 2):.2f} MB")
 
 
-def check_memory_usage(threshold=2):
+def check_memory_usage(threshold=0.5):
     mem_info = psutil.virtual_memory()
     available_memory_gb = mem_info.available / (1024 ** 3)
     print(f'availabel memo {available_memory_gb}')
@@ -372,16 +372,6 @@ def predict(items):
                 ) as output:
                     output.write(prediction)
 
-            
-
-
-            log_memory_usage()
-
-def flatten_extend(matrix):
-    flat_list = []
-    for row in matrix: flat_list.extend(row)
-    return flat_list
-
 
 
 '''
@@ -431,6 +421,8 @@ for year in YEARS:
 
         for month in MONTHS:
 
+            last_day = '28' if month == '02' else '30'
+
             check_memory_usage()  # Check memory at the start of each month loop
 
             # identify loaded images from asset
@@ -444,7 +436,7 @@ for year in YEARS:
             if k in tiles_loaded_cls: continue
 
             T0 = '{}-{}-{}'.format(year, month, '01')
-            T1 = '{}-{}-{}'.format(year, month, '30')
+            T1 = '{}-{}-{}'.format(year, month, last_day)
 
 
             if not os.path.isdir(f'01_selective_logging/predictions/{year}'):

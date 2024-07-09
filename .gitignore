@@ -10,3 +10,7 @@ models/__pycache__
 01_selective_logging/03_inference_scene_.py
 02_patches/data
 02_patches/config
+03_simex_trace/data
+03_simex_trace/er
+03_analysis_states_vector/data
+03_analysis_states_vector
