@@ -88,11 +88,11 @@ def read_example(serialized: bytes) -> tuple[tf.Tensor, tf.Tensor]:
     inputs = tf.io.parse_tensor(example["inputs"], tf.float32)
     labels = tf.io.parse_tensor(example["labels"], tf.int64)
 
-    # TensorFlow can't infer the shapes, so we set them explicitly.
+    # tensorFlow can't infer the shapes, so we set them explicitly.
     inputs.set_shape([None, None, len(BANDS)])
     labels.set_shape([None, None, 1])
 
-    # Classifications are measured against one-hot encoded vectors.
+    # classifications are measured against one-hot encoded vectors.
     one_hot_labels = tf.one_hot(labels[:, :, 0], NUM_CLASSES)
     return (inputs, one_hot_labels)
 

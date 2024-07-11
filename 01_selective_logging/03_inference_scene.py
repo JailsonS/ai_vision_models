@@ -90,7 +90,7 @@ OUTPUT_TILE = '01_selective_logging/predictions'
 
 '''
 
-EXECUTOR = concurrent.futures.ThreadPoolExecutor(max_workers=20)
+EXECUTOR = concurrent.futures.ThreadPoolExecutor(max_workers=25)
 #EXECUTOR = concurrent.futures.ProcessPoolExecutor(max_workers=10)
 
 # image resolution in meters
@@ -172,9 +172,9 @@ def check_memory_usage(threshold=0.5):
     mem_info = psutil.virtual_memory()
     available_memory_gb = mem_info.available / (1024 ** 3)
     print(f'availabel memo {available_memory_gb}')
-    #if available_memory_gb < threshold:
-    #    logger.warning(f"Memory usage is high. Available memory: {available_memory_gb:.2f} GB. Restarting...")
-    #    sys.exit(1)
+    if available_memory_gb < threshold:
+        logger.warning(f"Memory usage is high. Available memory: {available_memory_gb:.2f} GB. Restarting...")
+        sys.exit(1)
 
 
 
@@ -408,8 +408,6 @@ if len(TILES) == 0:
     TILES = ee.FeatureCollection(ASSET_TILES)\
         .filterBounds(roi.geometry())\
         .reduceColumns(ee.Reducer.toList(), ['NAME']).get('list').getInfo()
-
-print(len(TILES))
 
 # for k, v in TILES.items():
 
