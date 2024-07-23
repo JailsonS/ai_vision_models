@@ -90,7 +90,7 @@ OUTPUT_TILE = '01_selective_logging/predictions'
 
 '''
 
-EXECUTOR = concurrent.futures.ThreadPoolExecutor(max_workers=25)
+EXECUTOR = concurrent.futures.ThreadPoolExecutor(max_workers=35)
 #EXECUTOR = concurrent.futures.ProcessPoolExecutor(max_workers=10)
 
 # image resolution in meters
