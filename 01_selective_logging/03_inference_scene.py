@@ -406,7 +406,7 @@ simex = ee.FeatureCollection(ASSET_SIMEX).filter('nm_estad_1 == "MATO GROSSO"')
 
 if len(TILES) == 0:
     TILES = ee.FeatureCollection(ASSET_TILES)\
-        .filterBounds(roi.geometry())\
+        .filterBounds(simex.geometry())\
         .reduceColumns(ee.Reducer.toList(), ['NAME']).get('list').getInfo()
 
 # for k, v in TILES.items():
