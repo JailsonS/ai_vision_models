@@ -1,31 +1,46 @@
-from osgeo import gdal
-from osgeo import gdalconst
+
+import rasterio
+
 from glob import glob
+from rasterio.merge import merge
+
+'''
+    Config
+'''
 
 
+BASE_PATH = '/home/jailson/Imazon/dl_applications/source/02_patches'
 
-OUTPUT_PATH = '/content/imazon/mapbiomas/degradation/fragmentation/forest_mosaic/'
+OUTPUT_PATH = f'{BASE_PATH}/data'
 
-YEARS = [str(x) for x in range(1985,2023)]
+YEARS = [
+	#'1985',
+    #'1986',
+    #'1987',
+    #'1990',
+    #'1993',
+    #'1994',
+    #'1995',
+    #'1996',
+    '2000',
+    #'2004',
+    #'2011',
+    #'2016'
+]
 
-def merge_mosaic(rasters, output_path, year):
 
-    gdal.BuildVRT(output_path + "forest_mosaic_{}.vrt".format(year), rasters)
+'''
+    Implementation
+'''
 
-    gdal.Translate(
-        output_path + "forest_mosaic_{}.tif".format(year),
-        output_path + "forest_mosaic_{}.vrt".format(year),
-        outputType=gdalconst.GDT_Byte,
-        creationOptions=['TFW=NO', 'COMPRESS=LZW', 'TILED=YES', 'COPY_SRC_OVERVIEWS=YES'])
-    
     
 for year in YEARS:
 
-  mosaic_path = '/content/imazon/mapbiomas/degradation/fragmentation/forest_classification/forest_classification_{}_*.tif'.format(year)
+	input_year_path = '{}/data/examples_{}-*'.format(BASE_PATH, year)
 
-  mosaic = glob(mosaic_path)
-  print('Forest mosaic {}'.format(year))
+	list_images = [rasterio.open(x) for x in glob(input_year_path)]
+	
+	mosaic, output = merge(list_images, method = 'first', nodata = 0)
 
-  merge_mosaic(mosaic, OUTPUT_PATH, year)
+	print(output)
 
-  print('--')
