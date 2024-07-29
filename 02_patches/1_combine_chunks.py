@@ -1,9 +1,10 @@
 import numpy as np
 import rasterio.dtypes
+import rasterio
+
 from scipy.ndimage import find_objects
 from skimage.measure import label
 from collections import defaultdict
-import rasterio
 from glob import glob
 from scipy.ndimage import label as label_ndimage
 from pprint import pprint
@@ -11,17 +12,18 @@ from pprint import pprint
 PATH_IMAGES = '02_patches/data'
 
 YEARS = [
-    # 1985, 1986, 1987, 1988, 1989,
-    # 1990, 1991, 1992, 1993, 1994,
-    1995, 
-    #1996, 
-    #1997, 1998, 1999,
-    #2000, 2001, 2002, 2003, 2004,
+    1985, 1986, 1987, 1988, 1989,
+    1990, 1991, 1992, 1993, 1994, 
+    1996, 
+    1997, 1998, 1999,
+    2000, 2001, 2002, 2003, 2004,
     2005, 2006, 2007, 2008, 2009,
     2010, 2011, 2012, 2013, 2014,
     2015, 2016, 2017, 2018, 2019,
     2020, 2021, 2022
 ]
+
+SET_AREA_LABEL = False
 
 chunk_size = 600
 
@@ -46,8 +48,11 @@ def relabel_array(array, chunk_size=5):
             if i + chunk_size < rows and j + chunk_size < cols:
                 update_labels(labeled_array, i + chunk_size - 1, j + chunk_size - 1, i + chunk_size, j + chunk_size)
 
-    # return relabel_connected_components(labeled_array)
-    return set_area_label_connected_components(labeled_array)
+    if SET_AREA_LABEL:
+        return set_area_label_connected_components(labeled_array)
+    else:
+        return relabel_connected_components(labeled_array)
+    
 
 def update_labels(array, x1, y1, x2, y2):
     label1 = array[x1, y1]
@@ -107,10 +112,8 @@ for year in YEARS:
     data = np.expand_dims(array, axis=0)
 
     print(f"Classified array at time {year}:\n{array}")
-
     
-    
-    name = f'{PATH_IMAGES}/chunks_combined_{str(year)}.tif'
+    name = f'{PATH_IMAGES}/chunks_combined_area_{str(year)}.tif' if SET_AREA_LABEL else f'{PATH_IMAGES}/chunks_combined_{str(year)}.tif'
 
     with rasterio.open(
         name,
@@ -127,3 +130,8 @@ for year in YEARS:
 
     print(f'shape {data.shape}')
     
+# rm -r 02_patches/data/examples* 
+# 02_patches/data
+# python3 02_patches/0_mosaic.py
+# vim 02_patches/0_mosaic.py
+# gsutil mv 02_patches/data/mosaics/mosaic_2002.tif gs://imazon/mapbiomas/degradation/fragmentation/forest_mosaic/
