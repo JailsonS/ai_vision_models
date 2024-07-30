@@ -28,8 +28,11 @@ def geotiff_to_netcdf(geotiff_path, netcdf_path):
     # converter para um dataset (opcional, mas recomendável para NetCDF)
     ds = da.to_dataset(name='variable_name')
 
-    # salvar o dataset como netCDF
-    ds.to_netcdf(netcdf_path)
+    # Definir parâmetros de compressão
+    comp = dict(zlib=True, complevel=5)
+
+    # salvar o dataset como netCDF com compressão
+    ds.to_netcdf(netcdf_path, encoding={'variable_name': comp})
 
 
 
