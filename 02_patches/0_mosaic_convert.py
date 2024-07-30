@@ -12,7 +12,7 @@ YEARS = [
 for year in YEARS:
 
     path_geotif = '{}/mosaic_{}.tif'.format(BASE_PATH, str(year))
-    path_netcdf = '{}/netcdf_{}.tif'.format(BASE_PATH, str(year))
+    path_netcdf = '{}/netcdf_{}.nc'.format(BASE_PATH, str(year))
 
     geotiff_to_netcdf(path_geotif, path_netcdf)
 
