@@ -3,21 +3,25 @@ import rasterio
 from rasterio.transform import from_origin
 import numpy as np
 
+import rasterio
+import numpy as np
+import xarray as xr
+
 def geotiff_to_netcdf(geotiff_path, netcdf_path):
     with rasterio.open(geotiff_path) as src:
-        # ler os dados e as coordenadas
+        # Ler os dados e as coordenadas
         data = src.read(1)  # Assumindo que o GeoTIFF tem apenas uma banda
 
-        # obter as coordenadas
+        # Obter as coordenadas
         transform = src.transform
         width = src.width
         height = src.height
 
-        # gerar as coordenadas de latitude e longitude
+        # Gerar as coordenadas de latitude e longitude
         lon = np.arange(width) * transform[0] + transform[2]
         lat = np.arange(height) * transform[4] + transform[5]
 
-    # criar um DataArray com xarray
+    # Criar um DataArray com xarray
     da = xr.DataArray(
         data,
         dims=['lat', 'lon'],
@@ -25,14 +29,14 @@ def geotiff_to_netcdf(geotiff_path, netcdf_path):
         attrs={'crs': src.crs.to_string(), 'transform': src.transform}
     )
 
-    # converter para um dataset (opcional, mas recomendável para NetCDF)
+    # Converter para um dataset (opcional, mas recomendável para NetCDF)
     ds = da.to_dataset(name='variable_name')
 
     # Definir parâmetros de compressão
     comp = dict(zlib=True, complevel=5)
 
-    # salvar o dataset como netCDF com compressão
-    ds.to_netcdf(netcdf_path, encoding={'variable_name': comp})
+    # Salvar o dataset como netCDF com compressão usando o backend netCDF4
+    ds.to_netcdf(netcdf_path, engine='netcdf4', encoding={'variable_name': comp})
 
 
 
