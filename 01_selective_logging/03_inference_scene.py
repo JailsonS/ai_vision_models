@@ -392,6 +392,10 @@ model.compile(
         tf.keras.metrics.IoU(num_classes=2, target_class_ids=[1])]
 )
 
+#model.save('01_selective_logging/model/vertex')
+
+#exit()
+
 '''
 
     Running Session

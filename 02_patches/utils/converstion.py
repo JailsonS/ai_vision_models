@@ -1,14 +1,21 @@
 import xarray as xr
 import rasterio
 from rasterio.transform import from_origin
-
+import numpy as np
 
 def geotiff_to_netcdf(geotiff_path, netcdf_path):
-
     with rasterio.open(geotiff_path) as src:
         # ler os dados e as coordenadas
         data = src.read(1)  # Assumindo que o GeoTIFF tem apenas uma banda
-        lon, lat = src.transform * (src.width, src.height)
+
+        # obter as coordenadas
+        transform = src.transform
+        width = src.width
+        height = src.height
+
+        # gerar as coordenadas de latitude e longitude
+        lon = np.arange(width) * transform[0] + transform[2]
+        lat = np.arange(height) * transform[4] + transform[5]
 
     # criar um DataArray com xarray
     da = xr.DataArray(
