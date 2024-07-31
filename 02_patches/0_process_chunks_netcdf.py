@@ -7,12 +7,9 @@ from glob import glob
 
 PATH_IMAGES = '02_patches/data'
 
-YEARS = [
-    1985,
-    1986
-]
+YEARS = [1985, 1986]
 
-chunk_size = 600
+chunk_size = 200
 
 def create_chunks(arr, chunk_size):
     chunks = []
@@ -64,12 +61,14 @@ for idx, year in enumerate(YEARS):
     path = f'{PATH_IMAGES}/netcdf_{str(year)}.nc'
 
     with Dataset(path, 'r') as nc_file:
-        var = nc_file.variables['variable_name']  # Substitua 'variable_name' pelo nome da variável no seu arquivo netCDF
+        var = nc_file.variables['variable_name'][:]  # Substitua 'variable_name' pelo nome da variável no seu arquivo netCDF
+        crs = nc_file.getncattr('crs')
+        transform = nc_file.getncattr('transform')
 
         if idx == 0:
             proj = {
-                'crs': 'EPSG:4326',  # Substitua pelo CRS adequado
-                'transform': [0.0, 0.0, 0.0, 0.0, 0.0, 0.0]  # Substitua pela transformação adequada
+                'crs': crs,
+                'transform': transform
             }
 
         processed_chunks = []
@@ -116,8 +115,8 @@ for idx, year in enumerate(YEARS):
             height=np.array(data).shape[1],
             width=np.array(data).shape[2],
             dtype=data.dtype,
-            crs=rasterio.crs.CRS.from_epsg(4326),
-            transform=proj['transform']
+            crs=rasterio.crs.CRS.from_string(crs),
+            transform=transform
         ) as output:
             output.write(data)
 
