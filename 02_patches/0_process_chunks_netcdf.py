@@ -5,6 +5,7 @@ from netCDF4 import Dataset
 import rasterio
 from glob import glob
 from rasterio.transform import from_origin
+import xarray as xr
 
 PATH_IMAGES = '02_patches/data'
 
@@ -61,68 +62,69 @@ previous_labels = None
 for idx, year in enumerate(YEARS):
     path = f'{PATH_IMAGES}/netcdf_{str(year)}.nc'
 
-    with Dataset(path, 'r') as nc_file:
+    nc_file = xr.open_dataset(path)
 
-        # Acessar o DataArray (assumindo que o nome da variável é 'variable_name')
-        da = nc_file['variable_name']
 
-        print(da)
+    # Acessar o DataArray (assumindo que o nome da variável é 'variable_name')
+    da = nc_file['variable_name']
 
-        # Extrair os dados e as coordenadas
-        data_ = da.values
-        lat = da['lat'].values
-        lon = da['lon'].values
+    print(da)
 
-        # Calcular a transformação affine a partir das coordenadas
-        transform = from_origin(lon.min(), lat.max(), abs(lon[1] - lon[0]), abs(lat[1] - lat[0]))
+    # Extrair os dados e as coordenadas
+    data_ = da.values
+    lat = da['lat'].values
+    lon = da['lon'].values
 
-        processed_chunks = []
-        chunk_shape = (chunk_size, chunk_size)
+    # Calcular a transformação affine a partir das coordenadas
+    transform = from_origin(lon.min(), lat.max(), abs(lon[1] - lon[0]), abs(lat[1] - lat[0]))
 
-        for i in range(0, data_.shape[0], chunk_size):
-            for j in range(0, data_.shape[1], chunk_size):
-                arr_chunk = data_[i:i + chunk_size, j:j + chunk_size]
+    processed_chunks = []
+    chunk_shape = (chunk_size, chunk_size)
 
-                if idx > 0:
-                    with Dataset(f'{PATH_IMAGES}/netcdf_{str(year-1)}.nc', 'r') as prev_nc_file:
-                        var_prev = prev_nc_file.variables['variable_name']
-                        arr_prev_chunk = var_prev[i:i + chunk_size, j:j + chunk_size]
-                    prev_chunks = create_chunks(arr_prev_chunk, chunk_size)
-                else:
-                    prev_chunks = [None] * len(arr_chunk)
+    for i in range(0, data_.shape[0], chunk_size):
+        for j in range(0, data_.shape[1], chunk_size):
+            arr_chunk = data_[i:i + chunk_size, j:j + chunk_size]
 
-                combined_array = np.zeros_like(arr_chunk)
-                labels = label(arr_chunk, connectivity=1)
-                combined_array[:labels.shape[0], :labels.shape[1]] = labels
+            if idx > 0:
+                with Dataset(f'{PATH_IMAGES}/netcdf_{str(year-1)}.nc', 'r') as prev_nc_file:
+                    var_prev = prev_nc_file.variables['variable_name']
+                    arr_prev_chunk = var_prev[i:i + chunk_size, j:j + chunk_size]
+                prev_chunks = create_chunks(arr_prev_chunk, chunk_size)
+            else:
+                prev_chunks = [None] * len(arr_chunk)
 
-                if idx > 0:
-                    prev_chunk = prev_chunks[0]  # Usando apenas o primeiro chunk anterior
-                    prev_labels_chunk = previous_labels[0] if previous_labels else None
-                    combined_array = update_labels(prev_labels_chunk, prev_chunk, labels, combined_array)
-                
-                processed_chunks.append(combined_array)
+            combined_array = np.zeros_like(arr_chunk)
+            labels = label(arr_chunk, connectivity=1)
+            combined_array[:labels.shape[0], :labels.shape[1]] = labels
 
-        previous_labels = processed_chunks
-        processed_array = reassemble_chunks(processed_chunks, data_.shape, chunk_size)
+            if idx > 0:
+                prev_chunk = prev_chunks[0]  # Usando apenas o primeiro chunk anterior
+                prev_labels_chunk = previous_labels[0] if previous_labels else None
+                combined_array = update_labels(prev_labels_chunk, prev_chunk, labels, combined_array)
+            
+            processed_chunks.append(combined_array)
 
-        # export 
-        data = np.expand_dims(processed_array, axis=0)
+    previous_labels = processed_chunks
+    processed_array = reassemble_chunks(processed_chunks, data_.shape, chunk_size)
 
-        print(f"Classified array at time {str(year)}:\n{processed_array}")
-        
-        name = f'{PATH_IMAGES}/chunks/chunks_{str(year)}.tif'
+    # export 
+    data = np.expand_dims(processed_array, axis=0)
 
-        with rasterio.open(
-            name,
-            'w',
-            driver='COG',
-            count=1,
-            height=np.array(data).shape[1],
-            width=np.array(data).shape[2],
-            dtype=data.dtype,
-            crs=rasterio.crs.CRS.from_epsg(4326),
-            transform=transform
-        ) as output:
-            output.write(data)
+    print(f"Classified array at time {str(year)}:\n{processed_array}")
+    
+    name = f'{PATH_IMAGES}/chunks/chunks_{str(year)}.tif'
 
-        print(f'Shape {data.shape}')
+    with rasterio.open(
+        name,
+        'w',
+        driver='COG',
+        count=1,
+        height=np.array(data).shape[1],
+        width=np.array(data).shape[2],
+        dtype=data.dtype,
+        crs=rasterio.crs.CRS.from_epsg(4326),
+        transform=transform
+    ) as output:
+        output.write(data)
+
+    print(f'Shape {data.shape}')
