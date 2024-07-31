@@ -1,7 +1,6 @@
 import numpy as np
 from scipy.ndimage import find_objects
 from skimage.measure import label, regionprops
-from netCDF4 import Dataset
 import rasterio
 from glob import glob
 from rasterio.transform import from_origin
@@ -74,6 +73,8 @@ for idx, year in enumerate(YEARS):
     data_ = da.values
     lat = da['lat'].values
     lon = da['lon'].values
+
+    print(data_.shape)
 
     # Calcular a transformação affine a partir das coordenadas
     transform = from_origin(lon.min(), lat.max(), abs(lon[1] - lon[0]), abs(lat[1] - lat[0]))
