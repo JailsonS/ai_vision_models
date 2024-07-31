@@ -61,7 +61,7 @@ def update_labels(prev_labels, prev_chunk, curr_labels, combined_array):
 previous_labels = None
 
 for idx, year in enumerate(YEARS):
-    path = f'{PATH_IMAGES}/mosaic_netcdf_{str(year)}.nc'
+    path = f'{PATH_IMAGES}/netcdf_{str(year)}.nc'
 
     with Dataset(path, 'r') as nc_file:
         arr = nc_file.variables['variable_name'][:]  # Substitua 'variable_name' pelo nome da variável no seu arquivo netCDF
@@ -76,7 +76,7 @@ for idx, year in enumerate(YEARS):
     chunks = create_chunks(arr, chunk_size)
 
     if idx > 0:
-        with Dataset(f'{PATH_IMAGES}/mosaic_netcdf_{str(year-1)}.nc', 'r') as prev_nc_file:
+        with Dataset(f'{PATH_IMAGES}/netcdf_{str(year-1)}.nc', 'r') as prev_nc_file:
             arr_prev = prev_nc_file.variables['variable_name'][:]
         prev_chunks = create_chunks(arr_prev, chunk_size)
     else:
