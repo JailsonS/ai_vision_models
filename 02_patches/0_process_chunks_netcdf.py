@@ -4,6 +4,7 @@ from skimage.measure import label, regionprops
 from netCDF4 import Dataset
 import rasterio
 from glob import glob
+from rasterio.transform import from_origin
 
 PATH_IMAGES = '02_patches/data'
 
@@ -61,22 +62,24 @@ for idx, year in enumerate(YEARS):
     path = f'{PATH_IMAGES}/netcdf_{str(year)}.nc'
 
     with Dataset(path, 'r') as nc_file:
-        var = nc_file.variables['variable_name'][:]  # Substitua 'variable_name' pelo nome da variável no seu arquivo netCDF
-        crs = nc_file.getncattr('crs')
-        transform = nc_file.getncattr('transform')
 
-        if idx == 0:
-            proj = {
-                'crs': crs,
-                'transform': transform
-            }
+        # Acessar o DataArray (assumindo que o nome da variável é 'variable_name')
+        da = nc_file['variable_name']
+
+        # Extrair os dados e as coordenadas
+        data_ = da.values
+        lat = da['lat'].values
+        lon = da['lon'].values
+
+        # Calcular a transformação affine a partir das coordenadas
+        transform = from_origin(lon.min(), lat.max(), abs(lon[1] - lon[0]), abs(lat[1] - lat[0]))
 
         processed_chunks = []
         chunk_shape = (chunk_size, chunk_size)
 
-        for i in range(0, var.shape[0], chunk_size):
-            for j in range(0, var.shape[1], chunk_size):
-                arr_chunk = var[i:i + chunk_size, j:j + chunk_size]
+        for i in range(0, data_.shape[0], chunk_size):
+            for j in range(0, data_.shape[1], chunk_size):
+                arr_chunk = data_[i:i + chunk_size, j:j + chunk_size]
 
                 if idx > 0:
                     with Dataset(f'{PATH_IMAGES}/netcdf_{str(year-1)}.nc', 'r') as prev_nc_file:
@@ -98,7 +101,7 @@ for idx, year in enumerate(YEARS):
                 processed_chunks.append(combined_array)
 
         previous_labels = processed_chunks
-        processed_array = reassemble_chunks(processed_chunks, var.shape, chunk_size)
+        processed_array = reassemble_chunks(processed_chunks, data_.shape, chunk_size)
 
         # export 
         data = np.expand_dims(processed_array, axis=0)
@@ -115,7 +118,7 @@ for idx, year in enumerate(YEARS):
             height=np.array(data).shape[1],
             width=np.array(data).shape[2],
             dtype=data.dtype,
-            crs=rasterio.crs.CRS.from_string(crs),
+            crs=rasterio.crs.CRS.from_epsg(4326),
             transform=transform
         ) as output:
             output.write(data)
