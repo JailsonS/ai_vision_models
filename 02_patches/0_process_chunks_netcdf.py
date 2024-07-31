@@ -86,9 +86,15 @@ for idx, year in enumerate(YEARS):
             arr_chunk = data_[i:i + chunk_size, j:j + chunk_size]
 
             if idx > 0:
-                with Dataset(f'{PATH_IMAGES}/netcdf_{str(year-1)}.nc', 'r') as prev_nc_file:
-                    var_prev = prev_nc_file.variables['variable_name']
-                    arr_prev_chunk = var_prev[i:i + chunk_size, j:j + chunk_size]
+
+                prev_nc_file = xr.open_dataset(f'{PATH_IMAGES}/netcdf_{str(year-1)}.nc')
+                prev_nc_file = prev_nc_file['variable_name']
+                prev_nc_file = prev_nc_file.values
+
+                var_prev = prev_nc_file.variables['variable_name']
+                arr_prev_chunk = var_prev[i:i + chunk_size, j:j + chunk_size]
+
+
                 prev_chunks = create_chunks(arr_prev_chunk, chunk_size)
             else:
                 prev_chunks = [None] * len(arr_chunk)
