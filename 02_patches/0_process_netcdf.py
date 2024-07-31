@@ -81,12 +81,16 @@ for idx, year in enumerate(YEARS):
         
         for i in range(0, height, chunk_size):
             for j in range(0, width, chunk_size):
-                arr_chunk = data_[i:i + chunk_size, j:j + chunk_size]
+                # Define end indices, making sure they do not exceed the dimensions
+                end_i = min(i + chunk_size, height)
+                end_j = min(j + chunk_size, width)
+                
+                arr_chunk = data_[i:end_i, j:end_j]
 
                 if idx > 0:
                     prev_nc_file = xr.open_dataset(f'{PATH_IMAGES}/netcdf_{str(year-1)}.nc')
                     prev_da = prev_nc_file['variable_name']
-                    arr_prev_chunk = prev_da.values[i:i + chunk_size, j:j + chunk_size]
+                    arr_prev_chunk = prev_da.values[i:end_i, j:end_j]
                     prev_labels_chunk = label(arr_prev_chunk, connectivity=1)
                 else:
                     prev_labels_chunk = None
@@ -98,10 +102,11 @@ for idx, year in enumerate(YEARS):
                 if idx > 0:
                     combined_array = update_labels(prev_labels_chunk, arr_prev_chunk, labels, combined_array)
 
-                dst.write(combined_array, 1, window=Window(j, i, chunk_size, chunk_size))
+                # Write the chunk to the TIFF file
+                dst.write(combined_array, 1, window=Window(j, i, end_j - j, end_i - i))
 
                 if previous_labels is None:
                     previous_labels = np.zeros((height, width), dtype=np.int32)
-                previous_labels[i:i + chunk_size, j:j + chunk_size] = combined_array
+                previous_labels[i:end_i, j:end_j] = combined_array
 
     print(f'Finished processing year {year}')
