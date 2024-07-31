@@ -40,26 +40,26 @@ def geotiff_to_netcdf(geotiff_path, netcdf_path):
 
 
 
-
 def netcdf_to_geotiff(netcdf_path, geotiff_path):
-
+    # Abrir o dataset NetCDF
     ds = xr.open_dataset(netcdf_path)
 
-    # acessar o DataArray (assumindo que o nome da variável é 'variable_name')
+    # Acessar o DataArray (assumindo que o nome da variável é 'variable_name')
     da = ds['variable_name']
 
-    # extrair os dados e as coordenadas
+    # Extrair os dados e as coordenadas
     data = da.values
     lat = da['lat'].values
     lon = da['lon'].values
 
-    # calcular o transform (transformação affine) a partir das coordenadas
+    # Calcular a transformação affine a partir das coordenadas
     transform = from_origin(lon.min(), lat.max(), abs(lon[1] - lon[0]), abs(lat[1] - lat[0]))
 
+    # Escrever os dados em um arquivo GeoTIFF
     with rasterio.open(
         geotiff_path,
         'w',
-        driver='GTiff',
+        driver='COG',
         height=data.shape[0],
         width=data.shape[1],
         count=1,
