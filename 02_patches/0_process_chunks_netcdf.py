@@ -9,7 +9,7 @@ from glob import glob
 PATH_IMAGES = '02_patches/data'
 
 YEARS = [
-    1985, 2016
+    1985, 1986
 ]
 
 chunk_size = 600
