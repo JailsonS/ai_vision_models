@@ -1,6 +1,6 @@
 import numpy as np
 from scipy.ndimage import find_objects
-from skimage.measure import label, regionprops
+from skimage.measure import label
 import rasterio
 from rasterio.windows import Window
 from rasterio.transform import from_origin
@@ -11,14 +11,6 @@ PATH_IMAGES = '02_patches/data'
 YEARS = [1985, 1986]
 
 chunk_size = 200
-
-def create_chunks(arr, chunk_size):
-    chunks = []
-    for i in range(0, arr.shape[0], chunk_size):
-        for j in range(0, arr.shape[1], chunk_size):
-            chunk = arr[i:i + chunk_size, j:j + chunk_size]
-            chunks.append(chunk)
-    return chunks
 
 def update_labels(prev_labels, prev_chunk, curr_labels, combined_array):
     if prev_labels is None:
@@ -74,14 +66,13 @@ for idx, year in enumerate(YEARS):
         count=1,
         height=height,
         width=width,
-        dtype=np.int32,  # Alterei para int32 para economizar memória
+        dtype=np.int32,
         crs=rasterio.crs.CRS.from_epsg(4326),
         transform=transform
     ) as dst:
         
         for i in range(0, height, chunk_size):
             for j in range(0, width, chunk_size):
-                # Define end indices, making sure they do not exceed the dimensions
                 end_i = min(i + chunk_size, height)
                 end_j = min(j + chunk_size, width)
                 
@@ -102,7 +93,6 @@ for idx, year in enumerate(YEARS):
                 if idx > 0:
                     combined_array = update_labels(prev_labels_chunk, arr_prev_chunk, labels, combined_array)
 
-                # Write the chunk to the TIFF file
                 dst.write(combined_array, 1, window=Window(j, i, end_j - j, end_i - i))
 
                 if previous_labels is None:
