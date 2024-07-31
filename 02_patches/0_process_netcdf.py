@@ -1,16 +1,18 @@
 import numpy as np
 from scipy.ndimage import find_objects
-from skimage.measure import label
+from skimage.measure import label, regionprops
 import rasterio
-from rasterio.windows import Window
 from rasterio.transform import from_origin
 import xarray as xr
+import gc
+from rasterio.windows import Window
 
 PATH_IMAGES = '02_patches/data'
 
 YEARS = [1985, 1986]
 
-chunk_size = 200
+# Ajuste o tamanho do bloco para um valor menor se necessário
+chunk_size = 100
 
 def update_labels(prev_labels, prev_chunk, curr_labels, combined_array):
     if prev_labels is None:
@@ -98,5 +100,9 @@ for idx, year in enumerate(YEARS):
                 if previous_labels is None:
                     previous_labels = np.zeros((height, width), dtype=np.int32)
                 previous_labels[i:end_i, j:end_j] = combined_array
+
+                # Libera memória explicitamente
+                del arr_chunk, combined_array, labels
+                gc.collect()
 
     print(f'Finished processing year {year}')
