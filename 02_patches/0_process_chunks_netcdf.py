@@ -66,6 +66,8 @@ for idx, year in enumerate(YEARS):
         # Acessar o DataArray (assumindo que o nome da variável é 'variable_name')
         da = nc_file['variable_name']
 
+        print(da)
+
         # Extrair os dados e as coordenadas
         data_ = da.values
         lat = da['lat'].values
