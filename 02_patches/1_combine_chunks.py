@@ -55,23 +55,23 @@ for year in YEARS:
     # Coletando todos os arquivos de chunks
     chunk_files = glob(f'{PATH_IMAGES}/chunks/chunk_{year}_*.tif')
 
-    # Obtendo a forma original da imagem de algum dos arquivos (assumindo que todos têm a mesma forma)
-    with rasterio.open(chunk_files[0]) as src:
-        height = src.height
-        width = src.width
-        crs = src.crs
-        transform = src.transform
-
     # Criando a estrutura para reassemblar a imagem completa
-    original_shape = (height * int(np.sqrt(len(chunk_files))), width * int(np.sqrt(len(chunk_files))))
     chunks = []
+    max_i = max_j = 0
 
     for chunk_file in chunk_files:
         with rasterio.open(chunk_file) as src:
             chunk = src.read(1)
-            i = int(chunk_file.split('_')[-2])
-            j = int(chunk_file.split('_')[-1].split('.tif')[0])
+            _, i, j = os.path.basename(chunk_file).split('_')
+            i = int(i)
+            j = int(j.split('.tif')[0])
             chunks.append((chunk, i, j))
+            if i > max_i:
+                max_i = i
+            if j > max_j:
+                max_j = j
+
+    original_shape = (max_i + chunk_size, max_j + chunk_size)
 
     # Reassemblando a imagem completa
     reassembled_array = reassemble_chunks(chunks, original_shape, chunk_size)
@@ -80,7 +80,7 @@ for year in YEARS:
     relabelled_array = relabel_array(reassembled_array, chunk_size)
 
     # Salvando a imagem final reassemblada e reetiquetada
-    output_path = f'{PATH_IMAGES}/reassembled_{year}.tif'
+    output_path = f'{PATH_IMAGES}/reassembled/reassembled_{year}.tif'
     os.makedirs(os.path.dirname(output_path), exist_ok=True)
 
     with rasterio.open(
@@ -91,9 +91,9 @@ for year in YEARS:
         height=relabelled_array.shape[0],
         width=relabelled_array.shape[1],
         dtype=relabelled_array.dtype,
-        crs=crs,
-        transform=transform
+        crs=src.crs,
+        transform=src.transform
     ) as output:
         output.write(relabelled_array, 1)
 
-    print(f'Exported reassembled and relabelled image to {output_path}')
+    print
