@@ -62,14 +62,15 @@ for year in YEARS:
     for chunk_file in chunk_files:
         with rasterio.open(chunk_file) as src:
             chunk = src.read(1)
-            _, i, j = os.path.basename(chunk_file).split('_')
+            basename = os.path.basename(chunk_file)
+            _, i, j = basename.split('_')[1], basename.split('_')[2], basename.split('_')[3].split('.tif')[0]
             i = int(i)
-            j = int(j.split('.tif')[0])
-            chunks.append((chunk, i, j))
-            if i > max_i:
-                max_i = i
-            if j > max_j:
-                max_j = j
+            j = int(j)
+            chunks.append((chunk, i * chunk_size, j * chunk_size))
+            if i * chunk_size > max_i:
+                max_i = i * chunk_size
+            if j * chunk_size > max_j:
+                max_j = j * chunk_size
 
     original_shape = (max_i + chunk_size, max_j + chunk_size)
 
@@ -96,4 +97,4 @@ for year in YEARS:
     ) as output:
         output.write(relabelled_array, 1)
 
-    print
+    print(f'Exported reassembled and relabelled image to {output_path}')
