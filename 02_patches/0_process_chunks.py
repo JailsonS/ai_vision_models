@@ -89,7 +89,7 @@ previous_labels = None
 
 for idx, year in enumerate(YEARS):
 
-    path = f'{PATH_IMAGES}/forest_{str(year)}.tif'
+    path = f'{PATH_IMAGES}/mosaic_{str(year)}.tif'
 
     array_obj = rasterio.open(path)
 
@@ -106,7 +106,7 @@ for idx, year in enumerate(YEARS):
 
 
     if idx > 0:
-        arr_prev = rasterio.open(f'{PATH_IMAGES}/forest_{str(year-1)}.tif').read()[0]
+        arr_prev = rasterio.open(f'{PATH_IMAGES}/mosaic_{str(year-1)}.tif').read()[0]
         prev_chunks = prev_chunk = create_chunks(arr_prev, chunk_size)
     else:
         prev_chunks = [None] * len(chunks)
