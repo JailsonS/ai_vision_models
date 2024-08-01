@@ -84,7 +84,7 @@ for year in YEARS:
     relabelled_array = relabel_array(reassembled_array, chunk_size)
 
     # Salvando a imagem final reassemblada e reetiquetada
-    output_path = f'{PATH_IMAGES}/reassembled/reassembled_{year}.tif'
+    output_path = f'{PATH_IMAGES}/reassembled_{year}.tif'
     os.makedirs(os.path.dirname(output_path), exist_ok=True)
 
     with rasterio.open(
