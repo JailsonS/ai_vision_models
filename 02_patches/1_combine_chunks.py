@@ -1,75 +1,10 @@
 import numpy as np
-from scipy.ndimage import find_objects
-from skimage.measure import label, regionprops
 import rasterio
+from skimage.measure import label as label_ndimage
 from glob import glob
-from scipy.ndimage import label as label_ndimage
+import os
 
-# Definindo o caminho para as imagens e os anos
-PATH_IMAGES = '02_patches/data'
-
-YEARS = [
-    1985, 1986, 
-]
-
-SET_AREA_LABEL = False
-chunk_size = 600
-
-# Funções auxiliares para criar chunks
-def create_chunks(arr, chunk_size):
-    chunks = []
-    for i in range(0, arr.shape[0], chunk_size):
-        for j in range(0, arr.shape[1], chunk_size):
-            chunk = arr[i:i + chunk_size, j:j + chunk_size]
-            chunks.append((chunk, i, j))
-    return chunks
-
-def update_labels(prev_labels, prev_chunk, curr_labels, combined_array):
-    if prev_labels is None:
-        return combined_array
-
-    props_prev = regionprops(prev_labels)
-    props_curr = regionprops(curr_labels)
-    
-    prev_slices = find_objects(prev_labels)
-    curr_slices = find_objects(curr_labels)
-    
-    label_mapping = {}
-    
-    for prop_curr, curr_slice in zip(props_curr, curr_slices):
-        overlap_labels = set(prev_labels[curr_slice].flatten())
-        overlap_labels.discard(0)
-        
-        if len(overlap_labels) == 1:
-            prev_label = overlap_labels.pop()
-            label_mapping[prop_curr.label] = prev_label
-        else:
-            label_mapping[prop_curr.label] = np.max(prev_labels) + 1
-    
-    for label_value, mapped_label in label_mapping.items():
-        combined_array[curr_labels == label_value] = mapped_label
-    
-    return combined_array
-
-def relabel_array(array, chunk_size=5):
-    labeled_array, num_features = label_ndimage(array)
-    rows, cols = array.shape
-
-    for i in range(0, rows, chunk_size):
-        for j in range(0, cols, chunk_size):
-            if i + chunk_size < rows:
-                update_labels_local(labeled_array, i + chunk_size - 1, j, i + chunk_size, j)
-            if j + chunk_size < cols:
-                update_labels_local(labeled_array, i, j + chunk_size - 1, i, j + chunk_size)
-            if i + chunk_size < rows and j + chunk_size < cols:
-                update_labels_local(labeled_array, i + chunk_size - 1, j + chunk_size - 1, i + chunk_size, j + chunk_size)
-
-    if SET_AREA_LABEL:
-        return set_area_label_connected_components(labeled_array)
-    else:
-        return relabel_connected_components(labeled_array)
-
-def update_labels_local(array, x1, y1, x2, y2):
+def update_labels(array, x1, y1, x2, y2):
     label1 = array[x1, y1]
     label2 = array[x2, y2]
     if label1 != 0 and label2 != 0 and label1 != label2:
@@ -87,73 +22,78 @@ def relabel_connected_components(array):
 
     return relabeled_array
 
-def set_area_label_connected_components(array):
-    unique_labels = np.unique(array)
-    relabeled_array = np.zeros_like(array)
-    new_label = 1
+def reassemble_chunks(chunks, original_shape, chunk_size):
+    reassembled = np.zeros(original_shape, dtype=int)
+    for chunk, i, j in chunks:
+        reassembled[i:i + chunk_size, j:j + chunk_size] = chunk
+    return reassembled
 
-    for label in unique_labels:
-        count = np.count_nonzero(array[array == label])
-        print('count px',count)
-        if label != 0:
-            relabeled_array[array == label] = (count * 900) / 10000
-            new_label += 1
+def relabel_array(array, chunk_size=600):
+    rows, cols = array.shape
 
-    return relabeled_array
+    for i in range(0, rows, chunk_size):
+        for j in range(0, cols, chunk_size):
+            if i + chunk_size < rows:
+                update_labels(array, i + chunk_size - 1, j, i + chunk_size, j)
+            if j + chunk_size < cols:
+                update_labels(array, i, j + chunk_size - 1, i, j + chunk_size)
+            if i + chunk_size < rows and j + chunk_size < cols:
+                update_labels(array, i + chunk_size - 1, j + chunk_size - 1, i + chunk_size, j + chunk_size)
 
-previous_labels = None
+    return relabel_connected_components(array)
 
-for idx, year in enumerate(YEARS):
-    path = f'{PATH_IMAGES}/mosaic_{str(year)}.tif'
+# Definindo o caminho para as imagens e os anos
+PATH_IMAGES = '02_patches/data'
 
-    array_obj = rasterio.open(path)
+YEARS = [
+    1985, 1986, 
+]
 
-    proj = {
-        'crs': array_obj.crs,
-        'transform': array_obj.transform
-    }
+chunk_size = 600
 
-    arr = array_obj.read(1)
-    
-    chunks = create_chunks(arr, chunk_size)
+for year in YEARS:
+    # Coletando todos os arquivos de chunks
+    chunk_files = glob(f'{PATH_IMAGES}/chunks/chunk_{year}_*.tif')
 
-    if idx > 0:
-        arr_prev = rasterio.open(f'{PATH_IMAGES}/mosaic_{str(year-1)}.tif').read(1)
-        prev_chunks = create_chunks(arr_prev, chunk_size)
-    else:
-        prev_chunks = [(None, None, None)] * len(chunks)
+    # Obtendo a forma original da imagem de algum dos arquivos (assumindo que todos têm a mesma forma)
+    with rasterio.open(chunk_files[0]) as src:
+        height = src.height
+        width = src.width
+        crs = src.crs
+        transform = src.transform
 
-    for chunk_idx, (chunk, i, j) in enumerate(chunks):
-        combined_array = np.zeros_like(chunk)
-        labels = label(chunk, connectivity=1)
-        combined_array[:labels.shape[0], :labels.shape[1]] = labels
+    # Criando a estrutura para reassemblar a imagem completa
+    original_shape = (height * int(np.sqrt(len(chunk_files))), width * int(np.sqrt(len(chunk_files))))
+    chunks = []
 
-        if idx > 0:
-            prev_chunk, prev_i, prev_j = prev_chunks[chunk_idx]
-            prev_labels_chunk = previous_labels[chunk_idx] if previous_labels else None
-            combined_array = update_labels(prev_labels_chunk, prev_chunk, labels, combined_array)
+    for chunk_file in chunk_files:
+        with rasterio.open(chunk_file) as src:
+            chunk = src.read(1)
+            i = int(chunk_file.split('_')[-2])
+            j = int(chunk_file.split('_')[-1].split('.tif')[0])
+            chunks.append((chunk, i, j))
 
-        # Aplicando relabel_array ao chunk processado
-        combined_array = relabel_array(combined_array, chunk_size=chunk_size)
-        
-        # Exportando cada chunk processado como arquivo TIFF
-        data = np.expand_dims(combined_array, axis=0)
-        chunk_name = f'{PATH_IMAGES}/chunks/chunk_{str(year)}_{i}_{j}.tif'
+    # Reassemblando a imagem completa
+    reassembled_array = reassemble_chunks(chunks, original_shape, chunk_size)
 
-        with rasterio.open(
-            chunk_name,
-            'w',
-            driver='GTiff',
-            count=1,
-            height=combined_array.shape[0],
-            width=combined_array.shape[1],
-            dtype=combined_array.dtype,
-            crs=proj['crs'],
-            transform=rasterio.Affine(proj['transform'][0], proj['transform'][1], proj['transform'][2] + j,
-                                      proj['transform'][3], proj['transform'][4], proj['transform'][5] + i)
-        ) as output:
-            output.write(data)
+    # Reetiquetando a imagem completa
+    relabelled_array = relabel_array(reassembled_array, chunk_size)
 
-        print(f'Exported {chunk_name} with shape {data.shape}')
+    # Salvando a imagem final reassemblada e reetiquetada
+    output_path = f'{PATH_IMAGES}/reassembled_{year}.tif'
+    os.makedirs(os.path.dirname(output_path), exist_ok=True)
 
-    previous_labels = [chunk for chunk, _, _ in chunks]
+    with rasterio.open(
+        output_path,
+        'w',
+        driver='GTiff',
+        count=1,
+        height=relabelled_array.shape[0],
+        width=relabelled_array.shape[1],
+        dtype=relabelled_array.dtype,
+        crs=crs,
+        transform=transform
+    ) as output:
+        output.write(relabelled_array, 1)
+
+    print(f'Exported reassembled and relabelled image to {output_path}')
