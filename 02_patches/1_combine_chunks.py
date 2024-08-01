@@ -89,7 +89,7 @@ for year in YEARS:
     transform = None
     crs = None
 
-    chunk_files = glob(f'{PATH_IMAGES}/reassembled_{year}_*.tif')
+    chunk_files = glob(f'{PATH_IMAGES}/reassembled/reassembled_{year}_*.tif')
 
     for chunk_file in chunk_files:
         with rasterio.open(chunk_file) as src:
@@ -102,7 +102,7 @@ for year in YEARS:
 
     relabelled_final = relabel_array(reassembled_array, chunk_size)
 
-    output_path = f'{PATH_IMAGES}/mosaics/reassembled_{year}.tif'
+    output_path = f'{PATH_IMAGES}/final/reassembled_{year}.tif'
     os.makedirs(os.path.dirname(output_path), exist_ok=True)
 
     with rasterio.open(
