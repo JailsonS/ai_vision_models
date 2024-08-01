@@ -302,75 +302,76 @@ def get_patch(items):
 
 def predict(items):
 
-    with tf.device('/GPU:0'):
 
-        future_to_point = {EXECUTOR.submit(get_patch, item): item for item in items}
+    future_to_point = {EXECUTOR.submit(get_patch, item): item for item in items}
 
-        for future in concurrent.futures.as_completed(future_to_point):
-            check_memory_usage()
+    for future in concurrent.futures.as_completed(future_to_point):
+        check_memory_usage()
+        
+        data, response, idx = future.result()
+
+        if data is not None:
+
+            data = structured_to_unstructured(data)
+
             
-            data, response, idx = future.result()
+            data_norma = np.stack([normalize_array(data[:,:,x]) 
+                                        for x in FEATURES_INDEX]) 
 
-            if data is not None:
+            if APPLY_BRIGHT: 
+                data_norma = apply_brightness(data_norma)
 
-                data = structured_to_unstructured(data)
-
-                
-                data_norma = np.stack([normalize_array(data[:,:,x]) 
-                                            for x in FEATURES_INDEX]) 
-
-                if APPLY_BRIGHT: 
-                    data_norma = apply_brightness(data_norma)
-
-                
-                data_transposed = np.transpose(data_norma, (1,2,0))
-                
-                data_transposed = np.expand_dims(data_transposed, axis=0)
+            
+            data_transposed = np.transpose(data_norma, (1,2,0))
+            
+            data_transposed = np.expand_dims(data_transposed, axis=0)
 
 
-                # add exception here
-                # for prediction its necessary to have an extra dimension representing the bach
-                probabilities = model.predict(data_transposed)
+            # add exception here
+            # for prediction its necessary to have an extra dimension representing the bach
+            probabilities = model.predict(data_transposed)
 
 
-                # it only checks the supposed prediction and skip it if there is no logging
-                prediction = np.copy(probabilities)
-                prediction[prediction < 0.2] = 0
-                prediction[prediction >= 0.2] = 1
+            # it only checks the supposed prediction and skip it if there is no logging
+            prediction = np.copy(probabilities)
+            prediction[prediction < 0.2] = 0
+            prediction[prediction >= 0.2] = 1
 
-                if np.max(prediction[0]) == 0.0 or np.max(prediction[0]) == 0:
-                    continue
-
-
-                probabilities = probabilities[0]
-                probabilities = np.transpose(probabilities, (2,0,1))
-                
-                prediction = prediction[0].astype(np.uint8)
-
-                # data_output = tf.unstack(data, axis=2)
-                # data_output.append(prediction[:,:,0])
-                # data_output = np.stack(data_output, axis=2)
+            if np.max(prediction[0]) == 0.0 or np.max(prediction[0]) == 0:
+                continue
 
 
-                prediction = np.transpose(prediction, (2,0,1))
-                # prediction = np.transpose(data_output, (2,0,1))
+            probabilities = probabilities[0]
+            probabilities = np.transpose(probabilities, (2,0,1))
+            
+            prediction = prediction[0].astype(np.uint8)
 
-                name = OUTPUT_CHIPS.format(year,month,k,response['item'][1][0], idx)
+            # data_output = tf.unstack(data, axis=2)
+            # data_output.append(prediction[:,:,0])
+            # data_output = np.stack(data_output, axis=2)
 
-                print(name)
-                
-                with rasterio.open(
-                    name,
-                    'w',
-                    driver = 'COG',
-                    count = 1,
-                    height = prediction.shape[1],
-                    width  = prediction.shape[2],
-                    dtype  = prediction.dtype,
-                    crs    = rasterio.crs.CRS.from_epsg(4326),
-                    transform=response['affine']
-                ) as output:
-                    output.write(prediction)
+
+            prediction = np.transpose(prediction, (2,0,1))
+            # prediction = np.transpose(data_output, (2,0,1))
+
+            name = OUTPUT_CHIPS.format(year,month,k,response['item'][1][0], idx)
+
+            print(name)
+            
+            with rasterio.open(
+                name,
+                'w',
+                driver = 'COG',
+                count = 1,
+                height = prediction.shape[1],
+                width  = prediction.shape[2],
+                dtype  = prediction.dtype,
+                crs    = rasterio.crs.CRS.from_epsg(4326),
+                transform=response['affine']
+            ) as output:
+                output.write(prediction)
+
+            
 
 
 
@@ -488,7 +489,18 @@ for year in YEARS:
 
                 print(f'image {img_id} processed')
 
-            gc.collect()
+                
 
+                # Coletar lixo após cada imagem processada
+                gc.collect()
+
+                # Desalocar variáveis específicas
+                del items
+                del coords
+                del grid_img
+                del grid_feat
+
+
+            gc.collect()
 
 
