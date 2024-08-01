@@ -74,14 +74,17 @@ for year in YEARS:
 
     original_shape = (max_i + chunk_size, max_j + chunk_size)
 
-    # Reassemblando a imagem completa
-    reassembled_array = reassemble_chunks(chunks, original_shape, chunk_size)
+    # Processando cada chunk individualmente
+    reassembled_array = np.zeros(original_shape, dtype=int)
+
+    for chunk, i, j in chunks:
+        reassembled_array[i:i + chunk_size, j:j + chunk_size] = chunk
 
     # Reetiquetando a imagem completa
     relabelled_array = relabel_array(reassembled_array, chunk_size)
 
     # Salvando a imagem final reassemblada e reetiquetada
-    output_path = f'{PATH_IMAGES}/reassembled_{year}.tif'
+    output_path = f'{PATH_IMAGES}/reassembled/reassembled_{year}.tif'
     os.makedirs(os.path.dirname(output_path), exist_ok=True)
 
     with rasterio.open(
