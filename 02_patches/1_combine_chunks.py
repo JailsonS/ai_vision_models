@@ -94,7 +94,7 @@ for year in YEARS:
         count=1,
         height=relabelled_array.shape[0],
         width=relabelled_array.shape[1],
-        dtype=relabelled_array.dtype,
+        dtype='uint16',
         crs=src.crs,
         transform=src.transform
     ) as output:
