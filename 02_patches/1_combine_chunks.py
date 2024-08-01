@@ -22,11 +22,9 @@ def relabel_connected_components(array):
 
     return relabeled_array
 
-def reassemble_chunks(chunks, original_shape, chunk_size):
-    reassembled = np.zeros(original_shape, dtype=int)
-    for chunk, i, j in chunks:
-        reassembled[i:i + chunk_size, j:j + chunk_size] = chunk
-    return reassembled
+def process_chunk(chunk, chunk_idx, chunk_size):
+    relabelled_chunk = relabel_connected_components(chunk)
+    return relabelled_chunk
 
 def relabel_array(array, chunk_size=600):
     rows, cols = array.shape
@@ -55,10 +53,6 @@ for year in YEARS:
     # Coletando todos os arquivos de chunks
     chunk_files = glob(f'{PATH_IMAGES}/chunks/chunk_{year}_*.tif')
 
-    # Criando a estrutura para reassemblar a imagem completa
-    chunks = []
-    max_i = max_j = 0
-
     for chunk_file in chunk_files:
         with rasterio.open(chunk_file) as src:
             chunk = src.read(1)
@@ -66,25 +60,49 @@ for year in YEARS:
             _, i, j = basename.split('_')[1], basename.split('_')[2], basename.split('_')[3].split('.tif')[0]
             i = int(i)
             j = int(j)
-            chunks.append((chunk, i * chunk_size, j * chunk_size))
-            if i * chunk_size > max_i:
-                max_i = i * chunk_size
-            if j * chunk_size > max_j:
-                max_j = j * chunk_size
 
-    original_shape = (max_i + chunk_size, max_j + chunk_size)
+            # Processando e reetiquetando o chunk
+            relabelled_chunk = process_chunk(chunk, (i, j), chunk_size)
 
-    # Processando cada chunk individualmente
-    reassembled_array = np.zeros(original_shape, dtype=int)
+            # Salvando o chunk reetiquetado
+            output_path = f'{PATH_IMAGES}/reassembled/reassembled_{year}_{i}_{j}.tif'
+            os.makedirs(os.path.dirname(output_path), exist_ok=True)
 
-    for chunk, i, j in chunks:
-        reassembled_array[i:i + chunk_size, j:j + chunk_size] = chunk
+            with rasterio.open(
+                output_path,
+                'w',
+                driver='GTiff',
+                count=1,
+                height=relabelled_chunk.shape[0],
+                width=relabelled_chunk.shape[1],
+                dtype=relabelled_chunk.dtype,
+                crs=src.crs,
+                transform=src.transform
+            ) as output:
+                output.write(relabelled_chunk, 1)
 
-    # Reetiquetando a imagem completa
-    relabelled_array = relabel_array(reassembled_array, chunk_size)
+            print(f'Exported reassembled and relabelled chunk to {output_path}')
 
-    # Salvando a imagem final reassemblada e reetiquetada
-    output_path = f'{PATH_IMAGES}/reassembled_{year}.tif'
+# Agora, combinando os chunks reetiquetados incrementalmente
+for year in YEARS:
+    reassembled_array = None
+    transform = None
+    crs = None
+
+    chunk_files = glob(f'{PATH_IMAGES}/reassembled_{year}_*.tif')
+
+    for chunk_file in chunk_files:
+        with rasterio.open(chunk_file) as src:
+            chunk = src.read(1)
+            if reassembled_array is None:
+                reassembled_array = np.zeros_like(chunk)
+                transform = src.transform
+                crs = src.crs
+            reassembled_array += chunk
+
+    relabelled_final = relabel_array(reassembled_array, chunk_size)
+
+    output_path = f'{PATH_IMAGES}/mosaics/reassembled_{year}.tif'
     os.makedirs(os.path.dirname(output_path), exist_ok=True)
 
     with rasterio.open(
@@ -92,12 +110,12 @@ for year in YEARS:
         'w',
         driver='GTiff',
         count=1,
-        height=relabelled_array.shape[0],
-        width=relabelled_array.shape[1],
-        dtype='uint16',
-        crs=src.crs,
-        transform=src.transform
+        height=relabelled_final.shape[0],
+        width=relabelled_final.shape[1],
+        dtype=relabelled_final.dtype,
+        crs=crs,
+        transform=transform
     ) as output:
-        output.write(relabelled_array, 1)
+        output.write(relabelled_final, 1)
 
-    print(f'Exported reassembled and relabelled image to {output_path}')
+    print(f'Exported final reassembled and relabelled image to {output_path}')
