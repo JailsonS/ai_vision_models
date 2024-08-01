@@ -130,4 +130,30 @@ for idx, year in enumerate(YEARS):
 
         if idx > 0:
             prev_chunk, prev_i, prev_j = prev_chunks[chunk_idx]
-            prev_labels_chunk = previous_labels
+            prev_labels_chunk = previous_labels[chunk_idx] if previous_labels else None
+            combined_array = update_labels(prev_labels_chunk, prev_chunk, labels, combined_array)
+
+        # Aplicando relabel_array ao chunk processado
+        combined_array = relabel_array(combined_array, chunk_size=chunk_size)
+        
+        # Exportando cada chunk processado como arquivo TIFF
+        data = np.expand_dims(combined_array, axis=0)
+        chunk_name = f'{PATH_IMAGES}/chunks/chunk_{str(year)}_{i}_{j}.tif'
+
+        with rasterio.open(
+            chunk_name,
+            'w',
+            driver='GTiff',
+            count=1,
+            height=combined_array.shape[0],
+            width=combined_array.shape[1],
+            dtype=combined_array.dtype,
+            crs=proj['crs'],
+            transform=rasterio.Affine(proj['transform'][0], proj['transform'][1], proj['transform'][2] + j,
+                                      proj['transform'][3], proj['transform'][4], proj['transform'][5] + i)
+        ) as output:
+            output.write(data)
+
+        print(f'Exported {chunk_name} with shape {data.shape}')
+
+    previous_labels = [chunk for chunk, _, _ in chunks]
