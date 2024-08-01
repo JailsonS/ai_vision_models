@@ -92,7 +92,7 @@ for idx, year in enumerate(YEARS):
             count=1,
             height=combined_array.shape[0],
             width=combined_array.shape[1],
-            dtype=combined_array.dtype,
+            dtype='uint16',
             crs=proj['crs'],
             transform=rasterio.Affine(proj['transform'][0], proj['transform'][1], proj['transform'][2] + j,
                                       proj['transform'][3], proj['transform'][4], proj['transform'][5] + i)
