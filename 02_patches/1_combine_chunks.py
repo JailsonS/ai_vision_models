@@ -85,20 +85,31 @@ for year in YEARS:
 
 # Agora, combinando os chunks reetiquetados incrementalmente
 for year in YEARS:
-    reassembled_array = None
-    transform = None
-    crs = None
-
     chunk_files = glob(f'{PATH_IMAGES}/reassembled/reassembled_{year}_*.tif')
+    max_i = max_j = 0
+
+    for chunk_file in chunk_files:
+        basename = os.path.basename(chunk_file)
+        _, i, j = basename.split('_')[1], basename.split('_')[2], basename.split('_')[3].split('.tif')[0]
+        i = int(i)
+        j = int(j)
+        if i > max_i:
+            max_i = i
+        if j > max_j:
+            max_j = j
+
+    original_shape = (max_i + chunk_size, max_j + chunk_size)
+    reassembled_array = np.zeros(original_shape, dtype=int)
 
     for chunk_file in chunk_files:
         with rasterio.open(chunk_file) as src:
             chunk = src.read(1)
-            if reassembled_array is None:
-                reassembled_array = np.zeros_like(chunk)
-                transform = src.transform
-                crs = src.crs
-            reassembled_array += chunk
+            basename = os.path.basename(chunk_file)
+            _, i, j = basename.split('_')[1], basename.split('_')[2], basename.split('_')[3].split('.tif')[0]
+            i = int(i)
+            j = int(j)
+
+            reassembled_array[i:i + chunk.shape[0], j:j + chunk.shape[1]] = chunk
 
     relabelled_final = relabel_array(reassembled_array, chunk_size)
 
@@ -113,8 +124,8 @@ for year in YEARS:
         height=relabelled_final.shape[0],
         width=relabelled_final.shape[1],
         dtype=relabelled_final.dtype,
-        crs=crs,
-        transform=transform
+        crs=src.crs,
+        transform=src.transform
     ) as output:
         output.write(relabelled_final, 1)
 
