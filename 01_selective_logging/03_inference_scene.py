@@ -24,6 +24,7 @@ from utils.index import *
 from numpy.lib.recfunctions import structured_to_unstructured
 from retry import retry
 from glob import glob
+from rasterio.merge import merge
 from pprint import pprint
 from rasterio.transform import Affine
 
@@ -68,8 +69,8 @@ YEARS = [2022]
 MONTHS = [
     #'08', 
     #'09', 
-    #'10', 
-    '11', 
+    '10', 
+    #'11', 
     #'12'
 ]
 
@@ -90,7 +91,7 @@ OUTPUT_TILE = '01_selective_logging/predictions'
 
 '''
 
-EXECUTOR = concurrent.futures.ThreadPoolExecutor(max_workers=35)
+EXECUTOR = concurrent.futures.ThreadPoolExecutor(max_workers=20)
 #EXECUTOR = concurrent.futures.ProcessPoolExecutor(max_workers=10)
 
 # image resolution in meters
@@ -471,8 +472,8 @@ for year in YEARS:
             v = col.reduceColumns(ee.Reducer.toList(), ['system:index']).get('list').getInfo()
 
             # identify loaded images
-            loaded = ['_'.join(x.split('/')[-1].split('_')[:3]) 
-                        for x in glob(f'01_selective_logging/predictions/{year}/{month}/{k}/*')]
+            loaded = [x.split('/')[-1].replace('pred_','')
+                        for x in glob(f'01_selective_logging/predictions/{year}/{month}/{k}/pred*')]
 
             loaded = list(set(loaded))
 
@@ -487,6 +488,33 @@ for year in YEARS:
                 # run predictions
                 predict(items)
 
+
+                # mosaic chunks
+                list_chunks = [rasterio.open(x) for x in glob(f'{OUTPUT_TILE}/{str(year)}/{month}/{k}/{img_id}*')]
+                image_mosaic, out_trans = merge(list_chunks)
+
+
+                # save mosaic pred
+                name_image = f'{OUTPUT_TILE}/{str(year)}/{month}/{k}/pred_{img_id}.tif'
+                
+                with rasterio.open(
+                    name_image,
+                    'w',
+                    driver = 'COG',
+                    count = 1,
+                    height = image_mosaic.shape[1],
+                    width  = image_mosaic.shape[2],
+                    dtype  = 'uint8',
+                    crs    = rasterio.crs.CRS.from_epsg(4326),
+                    transform=out_trans
+                ) as output:
+                    output.write(image_mosaic)
+
+
+                # delete chunks
+                for i in glob(f'{OUTPUT_TILE}/{str(year)}/{month}/{k}/{img_id}*'):
+                    os.remove(i)
+
                 print(f'image {img_id} processed')
 
                 
@@ -496,9 +524,9 @@ for year in YEARS:
 
                 # Desalocar variáveis específicas
                 del items
-                del coords
-                del grid_img
-                del grid_feat
+                del list_chunks
+                del image_mosaic
+                del out_trans
 
 
             gc.collect()
