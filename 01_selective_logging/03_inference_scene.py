@@ -69,9 +69,9 @@ YEARS = [2022]
 MONTHS = [
     #'08', 
     #'09', 
-    '10', 
+    #'10', 
     #'11', 
-    #'12'
+    '12'
 ]
 
 TILES = []
@@ -262,7 +262,7 @@ def serialize(data: np.ndarray) -> bytes:
     return example.SerializeToString()
 
 
-@retry()
+@retry(delay=0.5)
 def get_patch(items):
 
     """Get a patch centered on the coordinates, as a numpy array."""
@@ -429,15 +429,6 @@ for year in YEARS:
 
             check_memory_usage()  # Check memory at the start of each month loop
 
-            # identify loaded images from asset
-            list_loaded_cls = ee.ImageCollection(ASSET_CLASSIFICATION)\
-                .filter(f'version == "1"')\
-                .reduceColumns(ee.Reducer.toList(), ['image_id']).get('list').getInfo()
-            
-            tiles_loaded_cls = [x[-5:] for x in list_loaded_cls]
-
-            # if tile is already processed, skip
-            if k in tiles_loaded_cls: continue
 
             T0 = '{}-{}-{}'.format(year, month, '01')
             T1 = '{}-{}-{}'.format(year, month, last_day)
@@ -452,6 +443,19 @@ for year in YEARS:
             if not os.path.isdir(f'01_selective_logging/predictions/{year}/{month}/{k}'):
                 os.mkdir(os.path.abspath(f'01_selective_logging/predictions/{year}/{month}/{k}'))
             else: continue
+
+
+            # identify loaded images from asset
+            list_loaded_cls = ee.ImageCollection(ASSET_CLASSIFICATION)\
+                .filter(f'version == "1"')\
+                .filterDate(T0, T1)\
+                .reduceColumns(ee.Reducer.toList(), ['image_id']).get('list').getInfo()
+            
+            tiles_loaded_cls = [x[-5:] for x in list_loaded_cls]
+
+            # if tile is already processed, skip
+            if k in tiles_loaded_cls: continue
+
 
 
             grid = ee.FeatureCollection(ASSET_TILES).filter(f'NAME == "{k}"')
@@ -476,6 +480,8 @@ for year in YEARS:
                         for x in glob(f'01_selective_logging/predictions/{year}/{month}/{k}/pred*')]
 
             loaded = list(set(loaded))
+
+            print(list_loaded_cls)
 
             list_image_id = [x for x in v if x not in loaded]
             list_image_id = [x for x in v if x not in list_loaded_cls]
