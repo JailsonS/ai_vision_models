@@ -483,7 +483,7 @@ def main(year, month):
                 items = enumerate(items)
 
                 # run predictions
-                predict(items)
+                predict(items, year, month, k)
 
 
                 # mosaic chunks
@@ -540,4 +540,4 @@ if __name__ == '__main__':
     
     args = parser.parse_args()
 
-    main(email=args.email, password=args.password, alert_code=args.alert_code, save_path=args.save_path)
+    main(year=args.year, month=args.month)
