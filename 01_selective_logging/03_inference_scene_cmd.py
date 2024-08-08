@@ -15,6 +15,7 @@ import ee, io, rasterio, keras
 import concurrent, gc
 import logging
 import psutil
+import argparse
 
 from tensorflow.keras import backend as  K
 
@@ -64,15 +65,6 @@ ASSET_CLASSIFICATION = 'projects/ee-simex/assets/logging_predictions'
 ADD_NDFI = False
 APPLY_BRIGHT = False
 
-YEARS = [2022]
-
-MONTHS = [
-    #'08', 
-    #'09', 
-    #'10', 
-    #'11', 
-    '12'
-]
 
 TILES = []
 
@@ -301,7 +293,7 @@ def get_patch(items):
     return data, response, items[0]
 
 
-def predict(items):
+def predict(items, year,month,k):
 
 
     future_to_point = {EXECUTOR.submit(get_patch, item): item for item in items}
@@ -417,14 +409,12 @@ if len(TILES) == 0:
 
 # for k, v in TILES.items():
 
-for year in YEARS:
-    
+
+def main(year, month):
+
     year = str(year)
 
     for k in TILES:
-
-        for month in MONTHS:
-
             last_day = '28' if month == '02' else '30'
 
             check_memory_usage()  # Check memory at the start of each month loop
@@ -539,3 +529,15 @@ for year in YEARS:
             gc.collect()
 
 
+    
+
+if __name__ == '__main__':
+
+    parser = argparse.ArgumentParser()
+
+    parser.add_argument('--month', type=str,help="month to be processed (format month: 01)")
+    parser.add_argument('--year', type=int, help="")
+    
+    args = parser.parse_args()
+
+    main(email=args.email, password=args.password, alert_code=args.alert_code, save_path=args.save_path)
