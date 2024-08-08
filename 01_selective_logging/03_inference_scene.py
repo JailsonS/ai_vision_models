@@ -470,6 +470,7 @@ for year in YEARS:
 
 
             col = ee.ImageCollection(ASSET_COLLECTION)\
+                .filter('CLOUDY_PIXEL_PERCENTAGE <= 80')\
                 .filter(f'MGRS_TILE == "{k}"')\
                 .filterDate(T0, T1)
 
