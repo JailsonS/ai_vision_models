@@ -83,7 +83,7 @@ OUTPUT_TILE = '01_selective_logging/predictions'
 
 '''
 
-EXECUTOR = concurrent.futures.ThreadPoolExecutor(max_workers=20)
+EXECUTOR = concurrent.futures.ThreadPoolExecutor(max_workers=30)
 #EXECUTOR = concurrent.futures.ProcessPoolExecutor(max_workers=10)
 
 # image resolution in meters
@@ -400,7 +400,7 @@ model.compile(
 
 roi = ee.FeatureCollection(ASSET_UF).filter('NM_ESTADO == "MATO GROSSO"')
 
-simex = ee.FeatureCollection(ASSET_SIMEX).filter('nm_estad_1 == "MATO GROSSO"') 
+simex = ee.FeatureCollection(ASSET_SIMEX).filter('nm_estad_1 == "PARA"') 
 
 if len(TILES) == 0:
     TILES = ee.FeatureCollection(ASSET_TILES)\
@@ -477,7 +477,7 @@ def main(year, month):
             list_image_id = [x for x in v if x not in loaded]
             list_image_id = [x for x in v if x not in list_loaded_cls]
 
-            for img_id in list_image_id[:2]:
+            for img_id in list_image_id:
 
                 items = list(zip([img_id] * len(coords), coords))
                 items = enumerate(items)
@@ -541,3 +541,8 @@ if __name__ == '__main__':
     args = parser.parse_args()
 
     main(year=args.year, month=args.month)
+
+# pid
+# 3451
+# 3584
+# 3711
