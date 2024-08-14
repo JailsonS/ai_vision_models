@@ -188,7 +188,7 @@ def apply_brightness(array):
 def get_image(items):
 
     coords = items[1][1]
-    yeartarget = items[1][2]
+    yeartarget = items[1][2] - 1
 
     if ADD_NDFI:
         t1_band_names = [x + '_t1' for x in NEW_BAND_NAMES + ['ndfi', 'gv', 'soil', 'cloud', 'shade','npv']]
@@ -224,7 +224,7 @@ def get_image(items):
     col_t0 = ee.ImageCollection(ASSET_COLLECTION)\
         .filterDate(t0, t0_)\
         .filterBounds(ee.Geometry.Point(coords))\
-        .filter('CLOUDY_PIXEL_PERCENTAGE < 30')
+        .filter('CLOUDY_PIXEL_PERCENTAGE < 20')
     
     # t0
     image_t0 = ee.Image(col_t0.median()).select(BAND_NAMES, NEW_BAND_NAMES)
@@ -539,9 +539,9 @@ if __name__ == '__main__':
 
     parser = argparse.ArgumentParser()
 
-    parser.add_argument('--yeartarget', type=int, help="")
+    parser.add_argument('--yeartarget', type=int, help="this is the year of calendar")
     parser.add_argument('--month', type=str,help="month to be processed (ex: 01)")
-    parser.add_argument('--year', type=int, help="")
+    parser.add_argument('--year', type=int, help="this is the year to search images for t1")
     
     args = parser.parse_args()
 
