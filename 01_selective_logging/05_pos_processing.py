@@ -35,6 +35,8 @@ for id in ids:
     fixImage = fixImage.set('system:time_end', image.get('system:time_end'))
     fixImage = fixImage.set('system:time_start', image.get('system:time_start'))
 
+    print(f'processing {id}')
+
     task = ee.batch.Export.image.toAsset(
         image=fixImage,
         description=id,

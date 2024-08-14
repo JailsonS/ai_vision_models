@@ -128,7 +128,7 @@ BAND_NAMES = [
 ]
 
 NEW_BAND_NAMES = [
-    'red','green', 'blue', 'nir','swir1', 'swir2'
+    'blue','green', 'red', 'nir','swir1', 'swir2'
 ]
 
 FEATURES = [
@@ -188,6 +188,7 @@ def apply_brightness(array):
 def get_image(items):
 
     coords = items[1][1]
+    yeartarget = items[1][2]
 
     if ADD_NDFI:
         t1_band_names = [x + '_t1' for x in NEW_BAND_NAMES + ['ndfi', 'gv', 'soil', 'cloud', 'shade','npv']]
@@ -212,9 +213,12 @@ def get_image(items):
     image_t1 = image_t1.rename(t1_band_names)
 
     # get relative dates for t0
-    tmp_date = ee.Date(image_t1.get('system:time_start')).advance(-12, 'months')
-    t0 = ee.Date.fromYMD(tmp_date.get('year'), 6, 1)
-    t0_ = ee.Date.fromYMD(tmp_date.get('year'), 10, 30)
+    # tmp_date = ee.Date(image_t1.get('system:time_start')).advance(-12, 'months')
+    # t0 = ee.Date.fromYMD(tmp_date.get('year'), 5, 1)
+    # t0_ = ee.Date.fromYMD(tmp_date.get('year'), 7, 30)
+
+    t0 = ee.Date.fromYMD(yeartarget, 5, 1)
+    t0_ = ee.Date.fromYMD(yeartarget, 7, 30)
 
 
     col_t0 = ee.ImageCollection(ASSET_COLLECTION)\
@@ -293,7 +297,7 @@ def get_patch(items):
     return data, response, items[0]
 
 
-def predict(items, year,month,k):
+def predict(items, year, month, k):
 
 
     future_to_point = {EXECUTOR.submit(get_patch, item): item for item in items}
@@ -410,7 +414,7 @@ if len(TILES) == 0:
 # for k, v in TILES.items():
 
 
-def main(year, month):
+def main(yeartarget, year, month):
 
     year = str(year)
 
@@ -479,7 +483,7 @@ def main(year, month):
 
             for img_id in list_image_id:
 
-                items = list(zip([img_id] * len(coords), coords))
+                items = list(zip([img_id] * len(coords), coords, [yeartarget] * len(coords)))
                 items = enumerate(items)
 
                 # run predictions
@@ -535,14 +539,15 @@ if __name__ == '__main__':
 
     parser = argparse.ArgumentParser()
 
-    parser.add_argument('--month', type=str,help="month to be processed (format month: 01)")
+    parser.add_argument('--yeartarget', type=int, help="")
+    parser.add_argument('--month', type=str,help="month to be processed (ex: 01)")
     parser.add_argument('--year', type=int, help="")
     
     args = parser.parse_args()
 
-    main(year=args.year, month=args.month)
+    main(yeartarget=args.yeartarget, year=args.year, month=args.month)
 
 # pid
-# 3451
-# 3584
-# 3711
+# 2730127
+# 2730261
+# 2730394
