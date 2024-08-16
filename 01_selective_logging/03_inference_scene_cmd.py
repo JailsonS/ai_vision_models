@@ -46,9 +46,8 @@ ee.Initialize(opt_url='https://earthengine-highvolume.googleapis.com', project='
 
 
 ASSET_COLLECTION = 'COPERNICUS/S2_HARMONIZED'
-#ASSET_TILES = 'projects/imazon-simex/MAPASREFERENCIA/GRID_SENTINEL'
 
-ASSET_TILES = 'projects/mapbiomas-workspace/AUXILIAR/SENTINEL2/grid_sentinel'
+ASSET_TILES = 'projects/mapbiomas-workspace/AUXILIAR/cartas'
 
 ASSET_LEGAL_AMAZON = 'users/jailson/brazilian_legal_amazon'
 
@@ -83,7 +82,7 @@ OUTPUT_TILE = '01_selective_logging/predictions'
 
 '''
 
-EXECUTOR = concurrent.futures.ThreadPoolExecutor(max_workers=30)
+EXECUTOR = concurrent.futures.ThreadPoolExecutor(max_workers=35)
 #EXECUTOR = concurrent.futures.ProcessPoolExecutor(max_workers=10)
 
 # image resolution in meters
@@ -188,7 +187,8 @@ def apply_brightness(array):
 def get_image(items):
 
     coords = items[1][1]
-    yeartarget = items[1][2] - 1
+    yeart = items[1][2] - 1
+    point = ee.Geometry.Point(coords)
 
     if ADD_NDFI:
         t1_band_names = [x + '_t1' for x in NEW_BAND_NAMES + ['ndfi', 'gv', 'soil', 'cloud', 'shade','npv']]
@@ -198,7 +198,13 @@ def get_image(items):
         t0_band_names = [x + '_t0' for x in NEW_BAND_NAMES]
 
 
-    col = ee.ImageCollection(ASSET_COLLECTION).filter(f'system:index == "{items[1][0]}"')
+    col = ee.ImageCollection(ASSET_COLLECTION)\
+        .filterBounds(point)\
+        .filter(f'system:index == "{items[1][0]}"')
+    
+    # check if it has data
+    if int(col.size().getInfo()) == 0:
+        return None
 
     # t1
     image_t1 = ee.Image(col.first()).select(BAND_NAMES, NEW_BAND_NAMES)
@@ -217,8 +223,8 @@ def get_image(items):
     # t0 = ee.Date.fromYMD(tmp_date.get('year'), 5, 1)
     # t0_ = ee.Date.fromYMD(tmp_date.get('year'), 7, 30)
 
-    t0 = ee.Date.fromYMD(yeartarget, 5, 1)
-    t0_ = ee.Date.fromYMD(yeartarget, 7, 30)
+    t0 = ee.Date.fromYMD(yeart, 5, 1)
+    t0_ = ee.Date.fromYMD(yeart, 7, 30)
 
 
     col_t0 = ee.ImageCollection(ASSET_COLLECTION)\
@@ -268,6 +274,9 @@ def get_patch(items):
     coords = items[1][1]
 
     image = get_image(items)
+
+    if image == None:
+        return None, None, None
 
     request = dict(REQUEST)
     request['expression'] = image
@@ -336,20 +345,17 @@ def predict(items, year, month, k):
 
             if np.max(prediction[0]) == 0.0 or np.max(prediction[0]) == 0:
                 continue
-
-
-            probabilities = probabilities[0]
-            probabilities = np.transpose(probabilities, (2,0,1))
             
-            prediction = prediction[0].astype(np.uint8)
 
-            # data_output = tf.unstack(data, axis=2)
-            # data_output.append(prediction[:,:,0])
-            # data_output = np.stack(data_output, axis=2)
+            probabilities = probabilities * 100
+            probabilities = probabilities[0].astype(int)
 
 
-            prediction = np.transpose(prediction, (2,0,1))
-            # prediction = np.transpose(data_output, (2,0,1))
+            probabilities = np.transpose(probabilities, (2,0,1))
+
+            
+            #prediction = prediction[0].astype(np.uint8)
+            #prediction = np.transpose(prediction, (2,0,1))
 
             name = OUTPUT_CHIPS.format(year,month,k,response['item'][1][0], idx)
 
@@ -360,13 +366,13 @@ def predict(items, year, month, k):
                 'w',
                 driver = 'COG',
                 count = 1,
-                height = prediction.shape[1],
-                width  = prediction.shape[2],
-                dtype  = prediction.dtype,
+                height = probabilities.shape[1],
+                width  = probabilities.shape[2],
+                dtype  = probabilities.dtype,
                 crs    = rasterio.crs.CRS.from_epsg(4326),
                 transform=response['affine']
             ) as output:
-                output.write(prediction)
+                output.write(probabilities)
 
             
 
@@ -409,7 +415,7 @@ simex = ee.FeatureCollection(ASSET_SIMEX).filter('nm_estad_1 == "PARA"')
 if len(TILES) == 0:
     TILES = ee.FeatureCollection(ASSET_TILES)\
         .filterBounds(simex.geometry())\
-        .reduceColumns(ee.Reducer.toList(), ['NAME']).get('list').getInfo()
+        .reduceColumns(ee.Reducer.toList(), ['grid_name']).get('list').getInfo()
 
 # for k, v in TILES.items():
 
@@ -453,7 +459,7 @@ def main(yeartarget, year, month):
 
 
 
-            grid = ee.FeatureCollection(ASSET_TILES).filter(f'NAME == "{k}"')
+            grid = ee.FeatureCollection(ASSET_TILES).filter(f'grid_name == "{k}"')
             grid_feat = ee.Feature(grid.first()).set('id', 1)
             grid_img = ee.FeatureCollection([grid_feat]).reduceToImage(['id'], ee.Reducer.first())
 
@@ -466,7 +472,7 @@ def main(yeartarget, year, month):
 
             col = ee.ImageCollection(ASSET_COLLECTION)\
                 .filter('CLOUDY_PIXEL_PERCENTAGE <= 80')\
-                .filter(f'MGRS_TILE == "{k}"')\
+                .filterBounds(grid)\
                 .filterDate(T0, T1)
 
             v = col.reduceColumns(ee.Reducer.toList(), ['system:index']).get('list').getInfo()
@@ -548,6 +554,6 @@ if __name__ == '__main__':
     main(yeartarget=args.yeartarget, year=args.year, month=args.month)
 
 # pid
-# 2730127
-# 2730261
-# 2730394
+# 
+# 
+# 
