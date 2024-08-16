@@ -479,7 +479,7 @@ def main(yeartarget, year, month):
 
             # identify loaded images
             loaded = [x.split('/')[-1].replace('pred_','')
-                        for x in glob(f'01_selective_logging/predictions/{year}/{month}/{k}/pred*')]
+                        for x in glob(f'01_selective_logging/predictions/{year}/{month}/*/pred*')]
 
             loaded = list(set(loaded))
 
@@ -554,6 +554,6 @@ if __name__ == '__main__':
     main(yeartarget=args.yeartarget, year=args.year, month=args.month)
 
 # pid
-# 
-# 
-# 
+# 3121
+# 3254
+# 872508
