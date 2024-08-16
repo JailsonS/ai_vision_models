@@ -502,7 +502,7 @@ def main(yeartarget, year, month):
 
 
                 # save mosaic pred
-                name_image = f'{OUTPUT_TILE}/{str(year)}/{month}/{k}/pred_{img_id}.tif'
+                name_image = f'{OUTPUT_TILE}/{str(year)}/{month}/{k}/pred_{k}_{img_id}.tif'
                 
                 with rasterio.open(
                     name_image,
@@ -554,6 +554,6 @@ if __name__ == '__main__':
     main(yeartarget=args.yeartarget, year=args.year, month=args.month)
 
 # pid
-# 3121
-# 3254
-# 872508
+# 908688
+# 912677
+# 914816
