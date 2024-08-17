@@ -55,7 +55,7 @@ ASSET_UF = 'projects/mapbiomas-workspace/AUXILIAR/estados-2016'
 
 ASSET_SIMEX = 'users/jailson/simex/te_amz_legal_exp_simex_2020'
 
-ASSET_CLASSIFICATION = 'projects/ee-simex/assets/logging_predictions'
+ASSET_CLASSIFICATION = 'projects/ee-simex/assets/classification'
 
 '''
     Config Info
@@ -554,6 +554,6 @@ if __name__ == '__main__':
     main(yeartarget=args.yeartarget, year=args.year, month=args.month)
 
 # pid
-# 908688
-# 912677
-# 914816
+# 1904
+# 5744
+# 
