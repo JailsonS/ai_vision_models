@@ -436,8 +436,7 @@ def main(yeartarget, year, month):
 
             # identify loaded images from asset
             list_loaded_cls = ee.ImageCollection(ASSET_CLASSIFICATION)\
-                .filter(f'version == "1"')\
-                .filterDate(T0, T1)\
+                .filter(f'version == "1" and tile == "{k}"')\
                 .reduceColumns(ee.Reducer.toList(), ['image_id']).get('list').getInfo()
             
             tiles_loaded_cls = [x[-5:] for x in list_loaded_cls]
