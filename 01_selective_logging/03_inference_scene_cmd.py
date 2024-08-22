@@ -493,7 +493,7 @@ def main(yeartarget, year, month):
 
 
             list_image_id = [x for x in v if x not in loaded]
-            list_image_id = [x for x in v if x not in list_loaded_cls]
+            list_image_id = [x for x in list_image_id if x not in list_loaded_cls]
 
             for img_id in list_image_id:
 
