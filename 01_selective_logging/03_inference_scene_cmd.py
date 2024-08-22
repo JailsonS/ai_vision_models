@@ -14,7 +14,7 @@ import tensorflow as tf
 import ee, io, rasterio, keras
 import concurrent, gc
 import logging
-import psutil
+import psutil, time
 import argparse
 
 from tensorflow.keras import backend as  K
@@ -545,6 +545,8 @@ def main(yeartarget, year, month):
 
 
             gc.collect()
+
+            time.sleep(5)
 
 
     
