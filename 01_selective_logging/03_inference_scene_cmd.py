@@ -82,7 +82,7 @@ OUTPUT_TILE = '01_selective_logging/predictions'
 
 '''
 
-EXECUTOR = concurrent.futures.ThreadPoolExecutor(max_workers=25)
+EXECUTOR = concurrent.futures.ThreadPoolExecutor(max_workers=29)
 #EXECUTOR = concurrent.futures.ProcessPoolExecutor(max_workers=10)
 
 # image resolution in meters
@@ -188,6 +188,10 @@ def get_image(items):
 
     coords = items[1][1]
     yeart = items[1][2] - 1
+
+    print('year target', yeart)
+    print('id image', items[1][0])
+
     point = ee.Geometry.Point(coords)
 
     if ADD_NDFI:
@@ -436,10 +440,13 @@ def main(yeartarget, year, month):
 
             # identify loaded images from asset
             list_loaded_cls = ee.ImageCollection(ASSET_CLASSIFICATION)\
-                .filter(f'version == "1" and tile == "{k}"')\
+                .filter(f'version == "1" and version == "{k}"')\
                 .reduceColumns(ee.Reducer.toList(), ['image_id']).get('list').getInfo()
             
-            tiles_loaded_cls = [x[-5:] for x in list_loaded_cls]
+            tiles_loaded_cls = [x.split('_')[-1] for x in list_loaded_cls]
+
+            print(tiles_loaded_cls)
+
 
             # if tile is already processed, skip
             if k in tiles_loaded_cls: continue
@@ -481,6 +488,8 @@ def main(yeartarget, year, month):
                         for x in glob(f'01_selective_logging/predictions/{year}/{month}/*/pred*')]
 
             loaded = list(set(loaded))
+
+            print('loaded', loaded)
 
 
             list_image_id = [x for x in v if x not in loaded]
