@@ -506,6 +506,8 @@ def main(yeartarget, year, month):
 
                 # mosaic chunks
                 list_chunks = [rasterio.open(x) for x in glob(f'{OUTPUT_TILE}/{str(year)}/{month}/{k}/{img_id}*')]
+
+
                 image_mosaic, out_trans = merge(list_chunks)
 
 
@@ -539,14 +541,11 @@ def main(yeartarget, year, month):
 
                 # Desalocar variáveis específicas
                 del items
-                del list_chunks
                 del image_mosaic
                 del out_trans
 
 
             gc.collect()
-
-            time.sleep(5)
 
 
     
