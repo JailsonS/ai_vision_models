@@ -508,6 +508,9 @@ def main(yeartarget, year, month):
                 list_chunks = [rasterio.open(x) for x in glob(f'{OUTPUT_TILE}/{str(year)}/{month}/{k}/{img_id}*')]
 
 
+                if len(list_chunks) == 0: continue
+
+
                 image_mosaic, out_trans = merge(list_chunks)
 
 
