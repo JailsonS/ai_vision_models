@@ -77,6 +77,7 @@ MODEL_OUTPUT = f'01_selective_logging/model/{MODEL_NAME}'
 '''
 
 def read_example(serialized: bytes) -> tuple[tf.Tensor, tf.Tensor]:
+
     features_dict = {
         "inputs": tf.io.FixedLenFeature([], tf.string),
         "labels": tf.io.FixedLenFeature([], tf.string),
@@ -95,7 +96,6 @@ def read_example(serialized: bytes) -> tuple[tf.Tensor, tf.Tensor]:
     # classifications are measured against one-hot encoded vectors.
     one_hot_labels = tf.one_hot(labels[:, :, 0], NUM_CLASSES)
     return (inputs, one_hot_labels)
-
 
 
 def replace_nan(data, label):

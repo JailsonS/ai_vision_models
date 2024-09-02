@@ -72,7 +72,7 @@ var App = {
   options: {
     coord: PTS, // it starts with the first point coord
     featureCollection: null,
-    coordIndex:0,
+    coordIndex:111,
     currentImage: null,
     currentLabel: null,
   },
@@ -84,7 +84,7 @@ var App = {
       this.panelLeft.add(this.buttonBack);
       this.panelLeft.add(this.buttonSkip);
       this.panelLeft.add(this.buttonExport);
-      this.panelLeft.add(this.buttonFinishEdition);
+      //this.panelLeft.add(this.buttonFinishEdition);
 
       
       this.panelMain.add(this.panelMap);
@@ -93,6 +93,10 @@ var App = {
       ui.root.widgets().remove(ui.root.widgets().get(0));
       ui.root.insert(0, this.panelLeft);
       ui.root.insert(1, this.panelMain);
+      
+      var map = App.interfacaApp.panelMap.widgets().get(0);
+      map.drawingTools();
+      
       
       App.mountTimeLapse();
     },
@@ -138,7 +142,8 @@ var App = {
               App.skip();
             }
           );
-          App.auxFunctions.loadingBox();
+          
+          //App.auxFunctions.loadingBox();
         }
       },
       "style": {
@@ -301,8 +306,8 @@ var App = {
     
     var aoi = ee.Geometry.Point(App.options.coord[App.options.coordIndex][3]['coordinates']);
     
-    var t1 = ee.Date(App.options.coord[0][2]).advance(5, 'days')
-
+    //var t1 = ee.Date(App.options.coord[0][2]).advance(5, 'days')
+    var t1 = '2023-07-30'
    
     var collection = ee.ImageCollection('LANDSAT/LC08/C02/T1_L2')
       .filterBounds(aoi)
@@ -398,7 +403,7 @@ var App = {
       reducer:ee.Reducer.percentile([5, 95])
     }).getInfo();
     
-    print(pxPercentis)
+
     
     var min = [
       pxPercentis['blue_t1_p5'],
@@ -436,6 +441,7 @@ var App = {
     
     // set data
     App.options.currentImage = sample
+    App.options.currentLabel = simexImg
     
     
     var map = App.interfacaApp.panelMap.widgets().get(0);
@@ -465,25 +471,58 @@ var App = {
       min:-1, max:1, 
     }, 'ndfi temp')
     
-    map.addLayer(simexImg, {min:0,max:1})
+    map.addLayer(simexImg, {min:0,max:1}, 'ref', 0.5)
   },
   
   exportSample: function(){
+      App.auxFunctions.clear();
       // Verifica se existem imagens e labels para exportar
       if (App.options.currentImage && App.options.currentLabel) {
+        
         var image = App.options.currentImage;
         var label = App.options.currentLabel;
+        
+        var layers = App.interfacaApp.panelMap.widgets().get(0).drawingTools().layers();
+        
+        
+        
+        // check fix label
+        if(layers.length() !== 0) {
+          
+          print(layers.length())
+          
+          var adjGeom = layers.get(0).getEeObject();
+          var adjImg = ee.Image(1).clip(adjGeom);
+          
+          
+          label = label.where(adjImg.eq(1), 1)
+          
+        }
+
+        if(layers.length() > 1) {
+          
+          print(layers.length())
+          
+          var adjGeomRm = layers.get(1).getEeObject();
+          var adjImgRm = ee.Image(1).clip(adjGeomRm);
+          
+          
+          label = label.where(adjImgRm.eq(1), 0)
+          
+        }
+        
     
         // Combina as bandas de imagem e o label
-        var exportImage = image.addBands(label.rename('label'));
+        var exportImage = image.addBands(label.rename('label')).double();
     
         // Define os parâmetros de exportação
         var exportParams = {
           image: exportImage,
-          description: 'exported_sample',
-          bucket: 'your-bucket-name',  // Substitua pelo nome do seu bucket
-          fileNamePrefix: 'sample_' + App.options.coordIndex,
-          scale: 10,
+          description: 'sample_' + App.options.coordIndex,
+          bucket: 'imazon',  // Substitua pelo nome do seu bucket
+          fileNamePrefix: 'mapbiomas/degradation/ai_logging_dataset/chips/sample_' + App.options.coordIndex,
+          //scale: 30,
+          dimensions:256,
           region: image.geometry().bounds(),
           fileFormat: 'GeoTIFF',
           formatOptions: {
@@ -493,6 +532,8 @@ var App = {
     
         // Executa a exportação
         Export.image.toCloudStorage(exportParams);
+        App.auxFunctions.clearGeometry();
+        App.auxFunctions.clear();
         print('Exportação iniciada...');
       } else {
         print('Imagem ou label não disponível para exportação.');
@@ -528,6 +569,7 @@ var App = {
   
   skip: function(){
     App.auxFunctions.clear();
+    App.auxFunctions.clearGeometry();
     var currentCoordIndex = App.options.coordIndex;
 
     if (currentCoordIndex + 1 < App.options.coord.length) {
@@ -542,7 +584,7 @@ var App = {
     
   back: function() {
     App.auxFunctions.clear();
-    
+    App.auxFunctions.clearGeometry();
     var currentCoordIndex = App.options.coordIndex;
     
     if (currentCoordIndex - 1 >= 0) {
@@ -649,6 +691,25 @@ var App = {
       var widgets = map.widgets(); 
       widgets.remove(App.interfacaApp.loadingBox);
     },
+    
+    clearGeometry: function() {
+      
+      var drawingTools = App.interfacaApp.panelMap.widgets().get(0).drawingTools();
+      var layers = drawingTools.layers();
+      
+      layers.forEach(function(layer){
+        
+          var geometriesLayers = layer.geometries();
+          
+          geometriesLayers.forEach(function(geom){
+            
+            ee.Number(0).evaluate(function(){
+              geometriesLayers.remove(geom)
+            });
+
+          });
+      });
+    }
   },
 
 }

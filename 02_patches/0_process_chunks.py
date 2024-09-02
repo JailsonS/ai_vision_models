@@ -102,3 +102,32 @@ for idx, year in enumerate(YEARS):
         print(f'Exported {chunk_name} with shape {data.shape}')
 
     previous_labels = [chunk for chunk, _, _ in chunks]
+
+
+'''
+Tenho uma lista de arquivos geotiff para cada ano de 1985 a 2022, binários, onde representam 
+Forest Patches. Gostaria de fazer uma análise de fragmentação ao longo dos anos identificando
+os seguintes parâmetros:
+    1. individualizar cada forest patch com um identificador único
+    2. atualizar os labels dos patches somente em determinadas condições:
+        2.1 se o forest patch se dividir em mais de um fragmento, ex: patch = 5 em 1985, mas em 1986
+        se dividiu em 2, logo em 1986, os patches originados de 5 terão identificadores únicos de novos patches
+    3. se um forest patch "nascer" de uma área que não é floresta (valor 0 no ano anterior) e não se conectar 
+    a nenhum outro patch, este deverá ter um identificador único
+    4. se um patch ganhar área (novos pixels [1] que não são conectados a nenhum outro fragmento) este fragmento deve
+    manter seu identificador 
+
+abaixo um exemplo de lista de arquivos de entrada:
+
+input_data = [
+    'forest_1985.tif',
+    'forest_1986.tif',
+    'forest_1987.tif',
+    ... ,
+    'forest_2022.tif',
+
+]
+
+faça um script em python que implemente essas regras. Cada arquivo tif tem cerca de 14 GB
+
+'''

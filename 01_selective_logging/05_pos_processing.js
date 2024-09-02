@@ -1,68 +1,59 @@
 
+var asset = 'projects/ee-simex/assets/classification';
 
-var asset = 'projects/ee-simex/assets/logging_predictions';
-var assetOutput = 'projects/ee-simex/assets/predictions'
+var assetUf = 'projects/mapbiomas-workspace/AUXILIAR/estados-2016'
 
-var mb = ee.Image('projects/mapbiomas-workspace/public/collection8/mapbiomas_collection80_integration_v1')
-    mb = mb.select('classification_2020')
-    mb = mb.eq(3).or(mb.eq(6))
-
-var collection = ee.ImageCollection(asset)
-
-var collectionLoaded = ee.ImageCollection(assetOutput) 
-
-var image = collection.reduce(ee.Reducer.sum());
-
-
-var idsLoaded = collectionLoaded.reduceColumns(ee.Reducer.toList(), ['image_id']).get('list').getInfo();
-
-var ids = collection
-    .filter(ee.Filter.inList('image_id', idsLoaded).not())
-    .reduceColumns(ee.Reducer.toList(), ['image_id'])
-    .get('list').getInfo();
+var assetLulc = 'projects/mapbiomas-workspace/public/collection8/mapbiomas_collection80_integration_v1'
 
 
 
 
 
 
-var high = image.gt(3);
 
-var kernel = ee.Kernel.square({radius: 10});
-  
-var buffer = high
-             .focalMax({kernel: kernel, iterations: 2})
-             .reproject({scale:30, crs:'epsg:4326'})
-          
-var binaryMask = buffer.unmask(0);
+var roi = ee.FeatureCollection(assetUf).filter('NM_ESTADO == "PARأپ"')
 
 
-ids.forEach(function(id) {
-  
-  var image = ee.Image(collection.filter('image_id == "' + id +'"').first())
-  
-  
-  var fixImage = image.where(binaryMask.eq(0), 0);
-      fixImage = fixImage.mask(mb).selfMask()
-      fixImage = fixImage.copyProperties(image);
-      
-      fixImage = fixImage.set('system:time_end', image.get('system:time_end'));
-      fixImage = fixImage.set('system:time_start', image.get('system:time_start'));
-      
-  Export.image.toAsset({
-    image: fixImage,
-    description: id + '_1',
-    assetId: assetOutput + '/'+ id + '_1',
-    pyramidingPolicy: {'.default': 'mode'},
-    region: image.geometry(),
-    scale:10,
-    maxPixels:1e13
-  });
-  
-})
+var lulc = ee.Image(assetLulc).select('classification_2022').clip(roi.geometry());
+
+var water = lulc.eq(33).distance(ee.Kernel.euclidean(5)).gt(0);
+
+var forest = lulc.eq(3);
 
 
-image = image.where(binaryMask.eq(0), 0);
+var freq = ee.ImageCollection(asset)
+    .map(function(img){return img.gt(50)}).sum()
+    .clip(roi.geometry())
+    .mask(forest.eq(1)).where(water.eq(1), 0);
+    
+
+
+
+var vis = {
+    'min': 0,
+    'max': 16,
+    'palette': [
+      "#000000",
+      "ffffcc",
+      "ffeda0",
+      "fed976",
+      "feb24c",
+      "fd8d3c",
+      "fc4e2a",
+      "e31a1c",
+      "bd0026",
+      "800026"
+    ],
+    //'format': 'png'
+};
+
+Map.addLayer(freq, vis, 'freq');
+
+
+
+
+
+
 
 
 
