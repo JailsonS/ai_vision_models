@@ -27,17 +27,17 @@ Calcular a proporção de cada classe dentro de cada chip. Isso pode ser armazen
 
 2.3. Agrupamento de Chips por Perfis de Classes (Clustering)
 
-1. Normalização dos Dados: Certifique-se de que as proporções somam 100% para cada chip.
+1. **Normalização dos Dados**: Certifique-se de que as proporções somam 100% para cada chip.
 
-2. Escolha do Algoritmo de Clustering:
-    - K-Means: Para agrupamentos esféricos e bem separados.
-    - Hierárquico: Para identificar subgrupos e relações hierárquicas entre clusters.
-    - DBSCAN: Para detectar clusters de forma arbitrária e lidar com outliers.
+2. **Escolha do Algoritmo de Clustering**:
+    - **K-Means**: Para agrupamentos esféricos e bem separados.
+    - **Hierárquico**: Para identificar subgrupos e relações hierárquicas entre clusters.
+    - **DBSCAN**: Para detectar clusters de forma arbitrária e lidar com outliers.
 
-3. Determinação do Número de Clusters:
+3. **Determinação do Número de Clusters**:
 Utilize métodos como o Elbow Method ou Silhouette Score para definir o número adequado de clusters.
 Atribuição de Chips aos Clusters: Cada cluster representará um "estrato" na sua amostragem.
 
-4. Vantagens desta abordagem:
+4. **Vantagens desta abordagem**:
 Permite capturar a variabilidade e combinações de classes presentes nos chips.
 Facilita a seleção proporcional de chips de cada cluster para a amostra final.
