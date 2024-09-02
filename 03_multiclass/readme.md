@@ -26,7 +26,7 @@ Calcular a proporção de cada classe dentro de cada chip. Isso pode ser armazen
 ```
 
 2.3. Agrupamento de Chips por Perfis de Classes (Clustering)
-
+Primeiramente, é necessário estabelecer qual é a distribuição de classes que você deseja obter no conjunto de treinamento. Isso pode ser baseado em:
 1. **Normalização dos Dados**: Certifique-se de que as proporções somam 100% para cada chip.
 
 2. **Escolha do Algoritmo de Clustering**:
