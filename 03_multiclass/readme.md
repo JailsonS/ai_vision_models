@@ -64,3 +64,34 @@ Após a seleção:
 Se houver desvios significativos, ajuste o número de chips selecionados de certos clusters.
 Considere incluir ou excluir chips específicos para afinar a distribuição.
 
+## 3. Visualização da Distribuição de Classes nos Chips
+
+3.1. Histograma Multiclasse
+
+* Descrição: Mostra a distribuição de proporções de cada classe através de histogramas sobrepostos ou separados.
+
+* Implementação:
+    - Para cada classe, plote um histograma das proporções através dos chips.
+    - Utilize cores diferentes para cada classe e legendas claras.
+
+3.2. Scatter Plot Multidimensional
+    - Descrição: Representa cada chip como um ponto em um espaço multidimensional, onde cada eixo corresponde à proporção de uma classe.
+    - Implementação
+        - Para visualização em 2D ou 3D, selecione duas ou três classes principais.
+        - Utilize cores ou formas para indicar clusters ou outras características.
+        - Ferramentas como PCA (Análise de Componentes Principais) podem reduzir a dimensionalidade para facilitar a visualização.
+
+3.3. Boxplot para Comparação de Distribuições
+
+Implementação:
+Plote um boxplot para cada classe, permitindo comparar facilmente a dispersão e centralidade das proporções.
+Útil para identificar classes com alta variabilidade entre os chips.
+
+3.4. Heatmap de Correlação entre Classes
+
+3.5. Mapas Auto-Organizáveis (SOM)
+Descrição: Técnica de visualização que projeta dados multidimensionais em um espaço bidimensional preservando a topologia dos dados.
+Implementação:
+Treine um SOM com as proporções de classes dos chips.
+O resultado será um mapa onde regiões próximas contêm chips com distribuições de classes similares.
+Facilita a identificação de padrões complexos e estruturas nos dados.
