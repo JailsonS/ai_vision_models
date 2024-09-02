@@ -13,3 +13,11 @@
 - **Distribuição Real**: Manter a proporção real das classes presente no conjunto total.
 - **Distribuição Balanceada**: Equalizar as classes para evitar viés durante o treinamento.
 - **Distribuição Específica**: Ajustar as proporções conforme necessidades específicas do projeto ou importância de certas classes.
+
+2.2. Caracterização dos Chips
+
+Calcular a proporção de cada classe dentro de cada chip. Isso pode ser armazenado em uma tabela ou dataframe com as seguintes colunas:
+
+Chip_ID	Floresta (%)	Pasto (%)	Água (%)	Campo Natural (%)
+1	    70	            20	        5	        5
+2	    50	            30	        10	        10
