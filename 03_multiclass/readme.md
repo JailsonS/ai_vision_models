@@ -18,6 +18,6 @@
 
 Calcular a proporção de cada classe dentro de cada chip. Isso pode ser armazenado em uma tabela ou dataframe com as seguintes colunas:
 
-Chip_ID	Floresta (%)	Pasto (%)	Água (%)	Campo Natural (%)
-1	    70	            20	        5	        5
-2	    50	            30	        10	        10
+Chip_ID	Floresta (%)	Pasto (%)	Água (%)	Campo Natural (%) <br>
+1	    70	            20	        5	        5 <br>
+2	    50	            30	        10	        10 <br>
