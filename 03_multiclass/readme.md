@@ -39,5 +39,28 @@ Utilize métodos como o Elbow Method ou Silhouette Score para definir o número 
 Atribuição de Chips aos Clusters: Cada cluster representará um "estrato" na sua amostragem.
 
 4. **Vantagens desta abordagem**:
-Permite capturar a variabilidade e combinações de classes presentes nos chips.
-Facilita a seleção proporcional de chips de cada cluster para a amostra final.
+- Permite capturar a variabilidade e combinações de classes presentes nos chips.
+- Facilita a seleção proporcional de chips de cada cluster para a amostra final.
+
+
+2.4. Seleção de Amostras de Cada Cluster
+Após agrupar os chips:
+
+1. Determinar o Tamanho da Amostra Total: Defina quantos chips você deseja na amostra final (e.g., 10.000 chips).
+2. Alocar Amostras por Cluster:
+    - Proporcionalmente: Selecionar número de chips de cada cluster proporcional ao tamanho do cluster no conjunto total.
+    - Equalmente: Selecionar o mesmo número de chips de cada cluster para balancear a representação.
+3. Seleção Aleatória Dentro de Cada Cluster:
+    - Utilize seleção aleatória simples para escolher os chips dentro de cada cluster.
+    - Certifique-se de que a seleção mantém a diversidade interna do cluster.
+
+
+2.5. Verificação e Ajuste da Distribuição de Classes
+Após a seleção:
+
+1. Calcule a Distribuição Agregada: Some as proporções de classes de todos os chips selecionados para obter a distribuição geral.
+2. Comparação com a Distribuição Desejada: Verifique se a distribuição obtida atende aos objetivos estabelecidos inicialmente.
+3. Ajustes Necessários:
+Se houver desvios significativos, ajuste o número de chips selecionados de certos clusters.
+Considere incluir ou excluir chips específicos para afinar a distribuição.
+
