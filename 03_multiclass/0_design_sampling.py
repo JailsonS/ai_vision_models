@@ -193,3 +193,93 @@ Overfitting: Evite selecionar amostras muito homogêneas que possam levar ao ove
 Validação Cruzada: Utilize técnicas de validação cruzada para avaliar a performance da rede com diferentes subconjuntos de dados.
 Documentação: Mantenha um registro detalhado do processo de amostragem para replicabilidade e análise futura.
 '''
+
+import pandas as pd
+import numpy as np
+from sklearn.cluster import KMeans
+from sklearn.preprocessing import StandardScaler
+import matplotlib.pyplot as plt
+import seaborn as sns
+
+# 1. Simulação de Dados - Criando um dataframe de exemplo
+# Suponha que temos 100k chips com 4 classes (Floresta, Pasto, Água, Campo Natural)
+n_chips = 100000
+np.random.seed(42)
+
+# Gerando proporções aleatórias que somam 1 para cada chip
+def generate_random_proportions(n_chips, n_classes):
+    proportions = np.random.dirichlet(np.ones(n_classes), size=n_chips)
+    return proportions
+
+classes = ['Floresta', 'Pasto', 'Água', 'Campo_Natural']
+proportions = generate_random_proportions(n_chips, len(classes))
+
+# Criando DataFrame com as proporções
+df = pd.DataFrame(proportions, columns=classes)
+df['Chip_ID'] = range(1, n_chips + 1)
+df = df.set_index('Chip_ID')
+
+# 2. Análise Exploratória Inicial - Visualizando a distribuição das classes
+sns.histplot(data=df, multiple="stack", palette="viridis", bins=50)
+plt.title('Distribuição Inicial das Proporções de Classes nos Chips')
+plt.xlabel('Proporção')
+plt.ylabel('Número de Chips')
+plt.show()
+
+# 3. Agrupamento de Chips por Perfis de Classes (Clustering)
+# Normalização
+scaler = StandardScaler()
+scaled_data = scaler.fit_transform(df)
+
+# KMeans Clustering
+n_clusters = 10  # Definindo um número arbitrário de clusters
+kmeans = KMeans(n_clusters=n_clusters, random_state=42)
+df['Cluster'] = kmeans.fit_predict(scaled_data)
+
+# 4. Definição da Amostra Estratificada - Seleção Proporcional de Chips
+# Vamos selecionar 10k chips no total
+n_sample = 10000
+samples_per_cluster = (df['Cluster'].value_counts(normalize=True) * n_sample).astype(int)
+
+# Selecionando chips aleatoriamente dentro de cada cluster
+sampled_df = pd.DataFrame()
+
+for cluster in range(n_clusters):
+    cluster_chips = df[df['Cluster'] == cluster]
+    sampled_chips = cluster_chips.sample(n=samples_per_cluster[cluster], random_state=42)
+    sampled_df = pd.concat([sampled_df, sampled_chips])
+
+# 5. Verificação da Distribuição Final
+final_distribution = sampled_df[classes].mean()
+
+print("Distribuição Final das Classes na Amostra Selecionada:")
+print(final_distribution)
+
+# 6. Visualização da Distribuição Final das Classes na Amostra Selecionada
+sns.histplot(data=sampled_df[classes], multiple="stack", palette="viridis", bins=50)
+plt.title('Distribuição Final das Proporções de Classes nos Chips Amostrados')
+plt.xlabel('Proporção')
+plt.ylabel('Número de Chips')
+plt.show()
+
+# 7. Visualização Adicional - Scatter Plot dos Chips em 2D usando PCA
+from sklearn.decomposition import PCA
+
+pca = PCA(n_components=2)
+pca_result = pca.fit_transform(scaled_data)
+
+plt.figure(figsize=(10, 8))
+sns.scatterplot(x=pca_result[:, 0], y=pca_result[:, 1], hue=df['Cluster'], palette="viridis", s=10)
+plt.title('Distribuição dos Chips em 2D (PCA)')
+plt.xlabel('PC1')
+plt.ylabel('PC2')
+plt.show()
+
+# 8. Análise de Correlação entre as Proporções das Classes
+correlation_matrix = df[classes].corr()
+
+plt.figure(figsize=(8, 6))
+sns.heatmap(correlation_matrix, annot=True, cmap="coolwarm", vmin=-1, vmax=1)
+plt.title('Matriz de Correlação entre as Proporções das Classes')
+plt.show()
+
