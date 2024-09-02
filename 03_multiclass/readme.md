@@ -10,6 +10,6 @@
 
 2.1 Definir a Distribuição de Classes Desejada
 
-- *Distribuição Real*: Manter a proporção real das classes presente no conjunto total.
-- *Distribuição Balanceada*: Equalizar as classes para evitar viés durante o treinamento.
-- *Distribuição Específica*: Ajustar as proporções conforme necessidades específicas do projeto ou importância de certas classes.
+- **Distribuição Real**: Manter a proporção real das classes presente no conjunto total.
+- **Distribuição Balanceada**: Equalizar as classes para evitar viés durante o treinamento.
+- **Distribuição Específica**: Ajustar as proporções conforme necessidades específicas do projeto ou importância de certas classes.
