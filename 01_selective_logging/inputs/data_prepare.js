@@ -65,57 +65,160 @@ var visParams = {
 };
     
 
-print(PTS)
 
 var App = {
   
   options: {
     coord: PTS, // it starts with the first point coord
+    
     featureCollection: null,
+    //coordIndex:200,
     coordIndex:111,
+    
     currentImage: null,
     currentLabel: null,
+    
+    logoImazon: {
+      uri:'gs://logo_imazon/imazon_logo.b64',
+      base64: null
+    },
+    
+    minChangeVal: 0,
+    maxChangeVal: 0,
+    
+    lastChart: null,
+    lastSample: null,
+    
   },
   
   interfacaApp: {
     
     init: function(){
       
-      this.panelLeft.add(this.buttonBack);
-      this.panelLeft.add(this.buttonSkip);
-      this.panelLeft.add(this.buttonExport);
-      //this.panelLeft.add(this.buttonFinishEdition);
+      
+      
+      var blob = ee.Blob(App.options.logoImazon.uri);
 
+      blob.string().evaluate(function(str){
+          str = str.replace(/\n/g, '');
+          App.options.logoImazon.base64 = ui.Label({
+              imageUrl: str,
+              style: {
+                width:'300px',
+                height: '111px'
+              }
+          });
+          
+          
+          App.interfacaApp.tabs.add(App.interfacaApp.buttonGoToParams);
+          App.interfacaApp.tabs.add(App.interfacaApp.buttonGoToChart);
+          
+          App.interfacaApp.panelHead.add(App.options.logoImazon.base64);
+          App.interfacaApp.panelHead.add(App.interfacaApp.labelTitle);
+          App.interfacaApp.panelHead.add(App.interfacaApp.tabs);
+          
+          
+          App.interfacaApp.panelContentInfo.add(App.interfacaApp.inputStartEd);
+          App.interfacaApp.panelContentInfo.add(App.interfacaApp.buttontStartEd);
+          
+          
+          App.interfacaApp.panelContentInfo.add(App.interfacaApp.labelParamsChange);
+          App.interfacaApp.panelContentInfo.add(App.interfacaApp.inputMin);
+          App.interfacaApp.panelContentInfo.add(App.interfacaApp.inputMax);
+          App.interfacaApp.panelContentInfo.add(App.interfacaApp.buttontChange);
+          
+
+          App.interfacaApp.panelContentInfo.add(App.interfacaApp.labelSkipSession);
+          App.interfacaApp.panelContentInfo.add(App.interfacaApp.buttonBack);
+          App.interfacaApp.panelContentInfo.add(App.interfacaApp.buttonSkip);
+          App.interfacaApp.panelContentInfo.add(App.interfacaApp.buttonExport);
+          //this.panelLeft.add(this.buttonFinishEdition);
+          
+          
+          App.interfacaApp.panelContent.add(App.interfacaApp.panelHead);
+          App.interfacaApp.panelContent.add(App.interfacaApp.panelContentInfo);
+          
+    
+          
+          App.interfacaApp.panelMain.add(App.interfacaApp.panelMap);
+          App.interfacaApp.panelMain.add(App.interfacaApp.panelTimeLapse);
+          
+          ui.root.widgets().remove(ui.root.widgets().get(0));
+          ui.root.insert(0, App.interfacaApp.panelContent);
+          ui.root.insert(1, App.interfacaApp.panelMain);
+          
+          var map = App.interfacaApp.panelMap.widgets().get(0);
+          map.drawingTools();
+          
+          
+          App.mountTimeLapse();
+      });
       
-      this.panelMain.add(this.panelMap);
-      this.panelMain.add(this.panelTimeLapse);
-      
-      ui.root.widgets().remove(ui.root.widgets().get(0));
-      ui.root.insert(0, this.panelLeft);
-      ui.root.insert(1, this.panelMain);
-      
-      var map = App.interfacaApp.panelMap.widgets().get(0);
-      map.drawingTools();
       
       
-      App.mountTimeLapse();
+      
+    
     },
+    
     
     panelMain: ui.Panel({
       'layout': ui.Panel.Layout.Flow('vertical'),
       'style': {'stretch': 'both'}
     }),
     
-    panelLeft: ui.Panel({
+    panelContent: ui.Panel({
       'layout': ui.Panel.Layout.flow('vertical'),
       'style': {
-        'width': '350px',
+        //'width': '350px',
         'position': 'top-left',
         'margin': '0px 0px 0px 0px',
-        'backgroundColor': '#36363b',
-        'border': '1px solid darkgray',
+        'backgroundColor': '#fff',
+        //'border': '1px solid darkgray',
       },
     }),
+    
+    panelHead: ui.Panel({
+      'layout': ui.Panel.Layout.Flow('vertical'),
+      //'style': {'stretch': 'both'}
+    }),
+    
+    panelContentInfo: ui.Panel({
+      'layout': ui.Panel.Layout.flow('vertical'),
+      'style': {
+        //'width': '350px',
+        'position': 'top-left',
+        'margin': '0px 0px 0px 0px',
+        'backgroundColor': '#fff',
+        //'border': '1px solid darkgray',
+      },
+    }),
+    
+    
+    
+    
+    labelTitle: ui.Label('Construtor de CHIPS 1.0', {
+        'position': 'top-center',
+        'fontWeight': 'bold',
+        // 'padding': '1px',
+        'fontSize': '16px'
+    }),
+    
+    labelParamsChange: ui.Label('Parâmetros de detecção de mudança', {
+        'position': 'top-center',
+        //'fontWeight': 'bold',
+        // 'padding': '1px',
+        'fontSize': '14px'
+    }),
+    
+    
+    labelSkipSession: ui.Label('Paginação', {
+        'position': 'top-center',
+        //'fontWeight': 'bold',
+        // 'padding': '1px',
+        'fontSize': '14px'
+    }),
+  
+  
     
     panelTimeLapse: ui.Panel({
       'layout': ui.Panel.Layout.flow('horizontal'),
@@ -130,6 +233,91 @@ var App = {
       'layout': ui.Panel.Layout.Flow('horizontal'), 
       'style':{'stretch': 'both'}
     }),
+    
+    
+
+
+
+
+    tabs: ui.Panel({
+        layout: ui.Panel.Layout.flow('horizontal')
+    }),
+    
+
+    
+    buttontChange: ui.Button({
+        "label": "Aplicar Detecção de Mudança",
+        "onClick": function (button) {
+            var disabled = button.getDisabled();
+            if (!disabled) {
+                App.applyChange();
+            }
+        },
+        //"disabled": true,
+        "style": {
+            'padding': '1px',
+            'stretch': 'horizontal'
+        }
+    }), 
+    
+    
+    buttonGoToParams:  ui.Button({
+        "label": "Parâmetros",
+        "onClick": function (button) {
+            var disabled = button.getDisabled();
+            if (!disabled) {
+                App.goToParams();
+            }
+        },
+        "disabled": true,
+        "style": {
+            'padding': '1px',
+            'stretch': 'horizontal'
+        }
+    }),
+    
+    buttonGoToChart:  ui.Button({
+        "label": "Gráficos",
+        "onClick": function (button) {
+            var disabled = button.getDisabled();
+            if (!disabled) {
+                App.goToChart()
+            }
+        },
+        "disabled": false,
+        "style": {
+            'padding': '1px',
+            'stretch': 'horizontal'
+        }
+    }),
+    
+    
+    
+    
+    
+    buttontStartEd:  ui.Button({
+        "label": "Começar",
+        "onClick": function (button) {
+            var disabled = button.getDisabled();
+            if (!disabled) {
+                App.startEd()
+            }
+        },
+        "disabled": false,
+        "style": {
+            'padding': '1px',
+            'stretch': 'horizontal'
+        }
+    }),
+    
+    
+    
+    
+    
+    
+    
+    
+    
     
     buttonSkip: ui.Button({
       "label": ">",
@@ -217,6 +405,59 @@ var App = {
     }),
 
     
+    
+    inputStartEd: ui.Textbox({
+      placeholder: 'Iniciar a edição no índice: (ex:0)',
+      style: {
+        margin: '4px 4px 10px 10px',
+        width: '95%'
+      },
+      onChange:  function(txt) {
+            ee.Number(1).evaluate(
+                function (a) {
+                    App.setStartEdition(txt);
+                }
+            );
+            
+        }
+    }), 
+    
+    inputMin: ui.Textbox({
+      placeholder: 'Valor min. para logging (default: -0.250)',
+      style: {
+        margin: '4px 4px 10px 10px',
+        width: '95%'
+      },
+      onChange:  function(txt) {
+            ee.Number(1).evaluate(
+                function (a) {
+                    App.setMinVal(txt);
+                }
+            );
+            
+        }
+    }),    
+    
+    
+    inputMax: ui.Textbox({
+      placeholder: 'Valor max. para logging (default: -0.095)',
+      style: {
+        margin: '4px 4px 10px 10px',
+        width: '95%'
+      },
+      onChange:  function(txt) {
+            ee.Number(1).evaluate(
+                function (a) {
+                    App.setMaxVal(txt);
+                }
+            );
+            
+        }
+    }),    
+    
+    
+    
+    
     chartOptions: {
       legend: 'none',
       lineWidth: 1,
@@ -298,6 +539,8 @@ var App = {
       padding: '0px',
     },
   },
+  
+  
   
   mountTimeLapse: function() {
     App.auxFunctions.clear();
@@ -391,6 +634,12 @@ var App = {
     
     var sample = imaget0.addBands(imaget1)
     
+    
+    
+    
+    
+
+    
 
 
 
@@ -434,9 +683,6 @@ var App = {
 
 
 
-
-
-
     
     
     // set data
@@ -445,6 +691,7 @@ var App = {
     
     
     var map = App.interfacaApp.panelMap.widgets().get(0);
+    
     map.centerObject(aoi, 12);
  
     map.addLayer(sample, {
@@ -456,11 +703,12 @@ var App = {
     }, 'ndfi t0', false)    
     
     map.addLayer(sample, {
-      bands:['ndfi_t1'], min:-1, max:1, palette:PALETTE_NDFI
+      bands:['ndfi_t1'], min:-0.8, max:1, palette:PALETTE_NDFI
     }, 'ndfi t1')
     
     map.addLayer(sample, {
-      bands:['red_t1','green_t1', 'blue_t1'], min:min, max:max, 
+      bands:['red_t1','green_t1', 'blue_t1'], min:min, max:max,
+      gamma:0.5
     }, 'rgb t1', false)
     
     map.addLayer(sample, {
@@ -468,11 +716,39 @@ var App = {
     }, 'swir/nir/red t1', false)
     
     map.addLayer(ndfiTemporal, {
-      min:-1, max:1, 
+      min:0.1, max:0.97, 
     }, 'ndfi temp')
     
-    map.addLayer(simexImg, {min:0,max:1}, 'ref', 0.5)
+    map.addLayer(simexImg, {min:0,max:1}, 'simex', false, 0.5);
+    
+    
+    
+    var ndfiDiff = sample.select('ndfi_t1').subtract(sample.select('ndfi_t0'))
+        .rename('diff')
+    
+    
+    
+    // classified image based on ndfi
+    var changeClassification = ndfiDiff.expression(
+           '(b(0) >=-0.095 && b(0) <=0.095) ? 1 :' +
+           //  No forest change
+           '(b(0) >=-0.250 && b(0) <=-0.095) ? 2 :' + // Logging
+           '(b(0) <=-0.250) ? 3 :' + // Deforestation
+           '(b(0) >=0.095) ? 4  : 0') // Vegetation regrowth
+       .updateMask(sample.select('ndfi_t0').gt(0.60)); // mask out no forest
+    
+    
+    map.addLayer(changeClassification, {
+           palette: ['000000', '1eaf0c', 'ffc239', 'ff422f','74fff9']
+       }, 'change classification', false);
+    
+    App.interfacaApp.panelContentInfo.add(App.makeChangeHistogram(ndfiDiff))
+    
+    App.options.lastSample = sample;
   },
+  
+  
+  
   
   exportSample: function(){
       App.auxFunctions.clear();
@@ -567,6 +843,9 @@ var App = {
 
   },
   
+  
+  
+  
   skip: function(){
     App.auxFunctions.clear();
     App.auxFunctions.clearGeometry();
@@ -596,6 +875,165 @@ var App = {
       print('No more coordinates to go back to.');
     }
   },
+  
+  
+  goToParams: function(){
+    
+    App.interfacaApp.panelContentInfo.clear();
+    
+    App.interfacaApp.buttonGoToChart.setDisabled(false);
+    App.interfacaApp.buttonGoToParams.setDisabled(true);
+    
+    App.interfacaApp.panelContentInfo.add(App.interfacaApp.inputStartEd);
+    App.interfacaApp.panelContentInfo.add(App.interfacaApp.buttontStartEd);
+    
+    App.interfacaApp.panelContentInfo.add(App.interfacaApp.labelParamsChange);
+    App.interfacaApp.panelContentInfo.add(App.interfacaApp.inputMin);
+    App.interfacaApp.panelContentInfo.add(App.interfacaApp.inputMax);
+    App.interfacaApp.panelContentInfo.add(App.interfacaApp.buttontChange);
+    
+    App.interfacaApp.panelContentInfo.add(App.interfacaApp.labelSkipSession);
+    App.interfacaApp.panelContentInfo.add(App.interfacaApp.buttonBack);
+    App.interfacaApp.panelContentInfo.add(App.interfacaApp.buttonSkip);
+    App.interfacaApp.panelContentInfo.add(App.interfacaApp.buttonExport);
+
+  },
+  
+  goToChart: function() {
+    App.interfacaApp.panelContentInfo.clear();
+    
+    App.interfacaApp.buttonGoToChart.setDisabled(true);
+    App.interfacaApp.buttonGoToParams.setDisabled(false);
+    
+    if(App.options.lastChart !== null){
+        
+
+        var chart = ui.Chart.image.histogram({
+            image: App.options.lastChart,
+            region: App.options.lastChart.geometry(),
+            scale: 30
+        })
+          .setChartType('LineChart')  // Altere para LineChart
+          .setOptions({
+              title: 'Histograma da Diferença do NDFI',
+              hAxis: {
+                title: 'Count',  // O eixo horizontal agora mostra a contagem
+                titleTextStyle: {italic: false, bold: true},
+              },
+              vAxis: {
+                title: '',  // O eixo vertical mostra os valores dos bins
+                titleTextStyle: {italic: false, bold: true},
+              },
+              colors: ['cf513e'],  // Ajuste a cor se desejar
+          });
+
+      
+
+      
+        App.interfacaApp.panelContentInfo.add(chart)
+    }
+    
+    
+    
+    
+  },
+  
+  
+  
+  
+  makeChangeHistogram: function(ndfiDiff){
+    
+    App.interfacaApp.panelContentInfo.clear();
+
+    App.interfacaApp.buttonGoToChart.setDisabled(true);
+    App.interfacaApp.buttonGoToParams.setDisabled(false);
+
+    App.interfacaApp.buttonGoToChart.setDisabled(true);
+    //App.interfacaApp.buttonGoToData.setDisabled(false);
+    
+    var chart = ui.Chart.image.histogram({
+        image: ndfiDiff,
+        region: ndfiDiff.geometry(),
+        scale: 30
+    })
+      .setChartType('LineChart')  // Altere para LineChart
+      .setOptions({
+          title: 'Histograma da Diferença do NDFI',
+          hAxis: {
+            title: 'Count',  // O eixo horizontal agora mostra a contagem
+            titleTextStyle: {italic: false, bold: true},
+          },
+          vAxis: {
+            title: '',  // O eixo vertical mostra os valores dos bins
+            titleTextStyle: {italic: false, bold: true},
+          },
+          colors: ['cf513e'],  // Ajuste a cor se desejar
+      });
+      
+    App.options.lastChart = ndfiDiff;
+        
+    return chart;
+
+  },
+  
+  
+  applyChange: function(){
+    
+    if(
+      App.options.lastChart !== null && 
+      App.options.minChangeVal !== 0 &&
+      App.options.maxChangeVal !== 0
+    ){
+      
+      var map = App.interfacaApp.panelMap.widgets().get(0);
+      
+      
+      // classified image based on ndfi
+      var changeClassification = App.options.lastChart.expression(
+             '(b(0) >=-0.095 && b(0) <=0.095) ? 1 :' +
+             //  No forest change
+             '(b(0) >=' + String(App.options.minChangeVal) + ' && b(0) <= ' + String(App.options.maxChangeVal) + ') ? 2 :' + // Logging
+             '(b(0) <=' + String(App.options.minChangeVal) +') ? 3 :' + // Deforestation
+             '(b(0) >=0.095) ? 4  : 0') // Vegetation regrowth
+         .updateMask(App.options.lastSample.select('ndfi_t0').gt(0.60)); // mask out no forest
+      
+      
+      map.addLayer(changeClassification, {
+             palette: ['000000', '1eaf0c', 'ffc239', 'ff422f','74fff9']
+         }, 'new change classification');
+
+    } else {
+       print('nenhum parâmetro definido')
+    }
+    
+    
+  },
+  
+  
+  setMinVal: function(txt){
+    
+    App.options.minChangeVal = txt
+    
+  },
+  
+  setMaxVal: function(txt){
+    App.options.maxChangeVal = txt
+  },
+  
+  setStartEdition: function(txt){
+    App.options.coordIndex = parseInt(txt)
+    print(App.options.coordIndex)
+  },
+  
+  startEd: function(txt){
+    
+    App.auxFunctions.clear();
+    App.auxFunctions.clearGeometry();
+    
+    App.mountTimeLapse();
+    
+  },
+  
 
   idx: {
     
@@ -674,8 +1112,6 @@ var App = {
       
       
   },
-
-
 
   auxFunctions: {
     loadingBox: function(){
