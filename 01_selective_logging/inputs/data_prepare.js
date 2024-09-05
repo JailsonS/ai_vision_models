@@ -148,7 +148,15 @@ var App = {
           ui.root.insert(1, App.interfacaApp.panelMain);
           
           var map = App.interfacaApp.panelMap.widgets().get(0);
-          map.drawingTools();
+          
+          var geometries = [ee.Geometry.Point(0,0)];
+          
+          var drawingTools = map.drawingTools();
+          
+          drawingTools.addLayer(geometries, 'add logging', 'red');
+          drawingTools.addLayer(geometries, 'remove logging', 'green');
+          
+          drawingTools.setShape('polygon')
           
           
           App.mountTimeLapse();
@@ -413,11 +421,12 @@ var App = {
         width: '95%'
       },
       onChange:  function(txt) {
-            ee.Number(1).evaluate(
-                function (a) {
-                    App.setStartEdition(txt);
-                }
-            );
+        App.setStartEdition(txt);
+        //    ee.Number(1).evaluate(
+        //        function (a) {
+        //            App.setStartEdition(txt);
+        //        }
+        //    );
             
         }
     }), 
@@ -649,33 +658,33 @@ var App = {
       geometry: sample.geometry(),
       scale:30,
       maxPixels:1e13,
-      reducer:ee.Reducer.percentile([5, 95])
+      reducer:ee.Reducer.percentile([3, 98])
     }).getInfo();
     
 
     
     var min = [
-      pxPercentis['blue_t1_p5'],
-      pxPercentis['green_t1_p5'],
-      pxPercentis['red_t1_p5']
+      pxPercentis['blue_t1_p3'],
+      pxPercentis['green_t1_p3'],
+      pxPercentis['red_t1_p3']
     ]
     
     var max = [
-      pxPercentis['blue_t1_p95'],
-      pxPercentis['green_t1_p95'],
-      pxPercentis['red_t1_p95']
+      pxPercentis['blue_t1_p98'],
+      pxPercentis['green_t1_p98'],
+      pxPercentis['red_t1_p98']
     ]
             
     var min2 = [
-      pxPercentis['swir1_t1_p5'],
-      pxPercentis['nir_t1_p5'],
-      pxPercentis['red_t1_p5']
+      pxPercentis['swir1_t1_p3'],
+      pxPercentis['nir_t1_p3'],
+      pxPercentis['red_t1_p3']
     ]
     
     var max2 = [
-      pxPercentis['swir1_t1_p95'],
-      pxPercentis['nir_t1_p95'],
-      pxPercentis['red_t1_p95']
+      pxPercentis['swir1_t1_p98'],
+      pxPercentis['nir_t1_p98'],
+      pxPercentis['red_t1_p98']
     ]
     
 
@@ -708,7 +717,7 @@ var App = {
     
     map.addLayer(sample, {
       bands:['red_t1','green_t1', 'blue_t1'], min:min, max:max,
-      gamma:0.5
+      //gamma:0.5
     }, 'rgb t1', false)
     
     map.addLayer(sample, {
