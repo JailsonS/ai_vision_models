@@ -73,7 +73,7 @@ var App = {
     
     featureCollection: null,
     //coordIndex:200,
-    coordIndex:111,
+    coordIndex:290,
     
     currentImage: null,
     currentLabel: null,
@@ -83,8 +83,8 @@ var App = {
       base64: null
     },
     
-    minChangeVal: 0,
-    maxChangeVal: 0,
+    minChangeVal: -0.250,
+    maxChangeVal: -0.095,
     
     lastChart: null,
     lastSample: null,
@@ -696,7 +696,7 @@ var App = {
     
     // set data
     App.options.currentImage = sample
-    App.options.currentLabel = simexImg
+    
     
     
     var map = App.interfacaApp.panelMap.widgets().get(0);
@@ -738,6 +738,7 @@ var App = {
     
     
     // classified image based on ndfi
+    /*
     var changeClassification = ndfiDiff.expression(
            '(b(0) >=-0.095 && b(0) <=0.095) ? 1 :' +
            //  No forest change
@@ -745,15 +746,24 @@ var App = {
            '(b(0) <=-0.250) ? 3 :' + // Deforestation
            '(b(0) >=0.095) ? 4  : 0') // Vegetation regrowth
        .updateMask(sample.select('ndfi_t0').gt(0.60)); // mask out no forest
+    */   
+    
+    var changeClassification = ndfiDiff.gte(-0.250).and(ndfiDiff.lte(-0.095))
+        changeClassification = changeClassification.where(
+          sample.select('cloud_t1').gt(0.05), 0
+        )
     
     
-    map.addLayer(changeClassification, {
-           palette: ['000000', '1eaf0c', 'ffc239', 'ff422f','74fff9']
-       }, 'change classification', false);
+    //map.addLayer(changeClassification, {
+    //       palette: ['000000', '1eaf0c', 'ffc239', 'ff422f','74fff9']
+    //   }, 'change classification', false);
+    
+    map.addLayer(changeClassification, {min:0,max:1, palette:['black', 'white']}, 'change classification', false)
     
     App.interfacaApp.panelContentInfo.add(App.makeChangeHistogram(ndfiDiff))
     
     App.options.lastSample = sample;
+    App.options.currentLabel = changeClassification
   },
   
   
@@ -998,6 +1008,7 @@ var App = {
       
       
       // classified image based on ndfi
+      /*
       var changeClassification = App.options.lastChart.expression(
              '(b(0) >=-0.095 && b(0) <=0.095) ? 1 :' +
              //  No forest change
@@ -1005,11 +1016,22 @@ var App = {
              '(b(0) <=' + String(App.options.minChangeVal) +') ? 3 :' + // Deforestation
              '(b(0) >=0.095) ? 4  : 0') // Vegetation regrowth
          .updateMask(App.options.lastSample.select('ndfi_t0').gt(0.60)); // mask out no forest
+      */
       
+ 
+        
+      var changeClassification = App.options.lastChart.gte(App.options.minChangeVal).and(App.options.lastChart.lte(App.options.maxChangeVal))
+          changeClassification = changeClassification.where(
+            App.options.currentImage.select('cloud_t1').gt(0.05), 0
+          )
       
-      map.addLayer(changeClassification, {
-             palette: ['000000', '1eaf0c', 'ffc239', 'ff422f','74fff9']
-         }, 'new change classification');
+      //map.addLayer(changeClassification, {
+      //       palette: ['000000', '1eaf0c', 'ffc239', 'ff422f','74fff9']
+      //   }, 'new change classification');
+      
+      map.addLayer(changeClassification, {min:0, max:1}, 'new change classification')
+      
+      App.options.currentLabel = changeClassification
 
     } else {
        print('nenhum parâmetro definido')
