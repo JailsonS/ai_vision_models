@@ -1,10 +1,20 @@
 var idx = require('users/jailson/utils:index').indexSr
 
 
+
+
+
+
+var assetNICFI = 'projects/planet-nicfi/assets/basemaps/americas';
 var asset = 'projects/imazon-simex/DEGRADATION/freq_logging_2022_2023';
 var assetSp = 'projects/imazon-simex/DEGRADATION/amostras_logging_pt';
 var assetCol = 'COPERNICUS/S2_HARMONIZED';
 var assetPredictions = 'projects/ee-simex/assets/classification';
+
+
+
+
+
 
 
 var PALETTE_NDFI = 'FFFFFF,FFFCFF,FFF9FF,FFF7FF,FFF4FF,FFF2FF,FFEFFF,FFECFF,FFEAFF,FFE7FF,'+
@@ -55,6 +65,12 @@ var REFENCE = ee.FeatureCollection('projects/ee-imazon-simex-2023/assets/simex20
 
 
 var PTS = REFENCE.reduceColumns(ee.Reducer.toList(4), ['id', 'categoria', 'date','.geo']).get('list').getInfo();
+
+
+
+
+
+
 
 
 var visParams = {
@@ -602,12 +618,35 @@ var App = {
     
     
     var image = App.idx.applyScaleFactors(ee.Image(id))
-        .select(BAND_NAMES, LANDSAT_NEW_NAMES)  
+        .select(BAND_NAMES, LANDSAT_NEW_NAMES);
+        
+    
+    var dateImage = ee.Date(image.get('system:time_start'));
         
     image = App.idx.setFractions(image);
     image = App.idx.setNdfi(image).clip(aoiCanvas);
         
     
+    var nicfi = ee.ImageCollection(assetNICFI)
+        .filter(ee.Filter.calendarRange(
+          ee.Number(dateImage.get('year')),
+          ee.Number(dateImage.get('year')),
+          'year'
+        ))
+        .filter(ee.Filter.calendarRange(
+          ee.Number(dateImage.get('month')),
+          ee.Number(dateImage.get('month')),
+          'month'
+        ))
+        //.filterDate(dateImage, dateImage.advance(1, 'days')
+        .filterBounds(aoi)
+        .first();
+        
+    print(nicfi)
+        
+    nicfi = ee.Image(nicfi).clip(aoiCanvas);
+    
+    var nicfiNdvi = nicfi.normalizedDifference(['N','R'])
     
     
 
@@ -727,6 +766,16 @@ var App = {
     map.addLayer(ndfiTemporal, {
       min:0.1, max:0.97, 
     }, 'ndfi temp')
+        
+    map.addLayer(nicfi, {
+      bands: ['R', 'G' , 'B'],
+      max:1289.14
+    }, 'planet image', false)  
+    
+    map.addLayer(nicfiNdvi, {
+      mix:0.2, max:0.88,
+      palette:PALETTE_NDFI
+    }, 'ndvi planet image', false)  
     
     map.addLayer(simexImg, {min:0,max:1}, 'simex', false, 0.5);
     
@@ -738,15 +787,15 @@ var App = {
     
     
     // classified image based on ndfi
-    /*
-    var changeClassification = ndfiDiff.expression(
+
+    var changeClassification2 = ndfiDiff.expression(
            '(b(0) >=-0.095 && b(0) <=0.095) ? 1 :' +
            //  No forest change
            '(b(0) >=-0.250 && b(0) <=-0.095) ? 2 :' + // Logging
            '(b(0) <=-0.250) ? 3 :' + // Deforestation
            '(b(0) >=0.095) ? 4  : 0') // Vegetation regrowth
        .updateMask(sample.select('ndfi_t0').gt(0.60)); // mask out no forest
-    */   
+
     
     var changeClassification = ndfiDiff.gte(-0.250).and(ndfiDiff.lte(-0.095))
         changeClassification = changeClassification.where(
@@ -754,9 +803,9 @@ var App = {
         )
     
     
-    //map.addLayer(changeClassification, {
-    //       palette: ['000000', '1eaf0c', 'ffc239', 'ff422f','74fff9']
-    //   }, 'change classification', false);
+    map.addLayer(changeClassification2, {
+           palette: ['000000', '1eaf0c', 'ffc239', 'ff422f','74fff9']
+       }, 'change classification multi', false);
     
     map.addLayer(changeClassification, {min:0,max:1, palette:['black', 'white']}, 'change classification', false)
     
@@ -1008,15 +1057,15 @@ var App = {
       
       
       // classified image based on ndfi
-      /*
-      var changeClassification = App.options.lastChart.expression(
+      
+      var changeClassification2 = App.options.lastChart.expression(
              '(b(0) >=-0.095 && b(0) <=0.095) ? 1 :' +
              //  No forest change
              '(b(0) >=' + String(App.options.minChangeVal) + ' && b(0) <= ' + String(App.options.maxChangeVal) + ') ? 2 :' + // Logging
              '(b(0) <=' + String(App.options.minChangeVal) +') ? 3 :' + // Deforestation
              '(b(0) >=0.095) ? 4  : 0') // Vegetation regrowth
          .updateMask(App.options.lastSample.select('ndfi_t0').gt(0.60)); // mask out no forest
-      */
+      
       
  
         
@@ -1025,9 +1074,9 @@ var App = {
             App.options.currentImage.select('cloud_t1').gt(0.05), 0
           )
       
-      //map.addLayer(changeClassification, {
-      //       palette: ['000000', '1eaf0c', 'ffc239', 'ff422f','74fff9']
-      //   }, 'new change classification');
+      map.addLayer(changeClassification2, {
+             palette: ['000000', '1eaf0c', 'ffc239', 'ff422f','74fff9']
+         }, 'change classification multi');
       
       map.addLayer(changeClassification, {min:0, max:1}, 'new change classification')
       
@@ -1043,12 +1092,12 @@ var App = {
   
   setMinVal: function(txt){
     
-    App.options.minChangeVal = txt
+    App.options.minChangeVal = parseFloat(txt)
     
   },
   
   setMaxVal: function(txt){
-    App.options.maxChangeVal = txt
+    App.options.maxChangeVal = parseFloat(txt)
   },
   
   setStartEdition: function(txt){
