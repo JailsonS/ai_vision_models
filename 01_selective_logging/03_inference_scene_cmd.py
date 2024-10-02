@@ -44,7 +44,6 @@ ee.Initialize(opt_url='https://earthengine-highvolume.googleapis.com', project='
 '''
 
 
-
 ASSET_COLLECTION = 'COPERNICUS/S2_HARMONIZED'
 
 ASSET_TILES = 'projects/mapbiomas-workspace/AUXILIAR/cartas'
@@ -400,9 +399,6 @@ model.compile(
         tf.keras.metrics.IoU(num_classes=2, target_class_ids=[1])]
 )
 
-#model.save('01_selective_logging/model/vertex')
-
-#exit()
 
 '''
 
