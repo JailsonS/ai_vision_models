@@ -15,21 +15,35 @@ var assetNICFI = 'projects/planet-nicfi/assets/basemaps/americas';
 var asset = 'projects/imazon-simex/DEGRADATION/freq_logging_2022_2023';
 var assetCol = 'COPERNICUS/S2_HARMONIZED';
 var assetPredictions = 'projects/ee-simex/assets/classification';
-var assetOutputBucket = '';
+var assetOutputBucket = 'imazon/simex/ai_dataset';
 
+var assetSamplesNonLog = 'projects/ee-simex/assets/auxiliar/samples_non_logging';
 var assetSamplesInput = 'projects/ee-simex/assets/auxiliar/samples_logging'
 var assetSamplesOutput = 'projects/imazon-simex/DEGRADATION/amostras_logging_pt_' + analyst;
 
 
 
 var TARGET_GRIDS = ee.FeatureCollection(assetCartas).filter(ee.Filter.inList('grid_name', [
+    //'NA-20-Z-D',
+    //'SC-19-X-C',
+    //'SC-19-X-D',
+    //'SC-20-V-C',
+    //'SC-20-X-D',
+    //'SC-20-X-B',
+    //'SA-21-Z-C',
+    //'SA-22-Z-D',
+    //'SC-21-Z-D',
+    
     'NA-20-Z-D',
-    'SC-19-X-C',
-    'SC-19-X-D',
+    'SC-19-V-B',
     'SC-20-V-C',
+    'SC-20-X-A',
     'SC-20-X-D',
-    'SC-20-X-B',
+    'SB-21-X-D',
     'SA-21-Z-C',
+    'SA-21-Y-A',
+    'SA-21-X-C',
+    'SA-22-Y-A',
     'SA-22-Z-D',
     'SC-21-Z-D'
 ]));
@@ -83,9 +97,16 @@ var REFENCE = ee.FeatureCollection(assetSamplesInput).map(function(feat){
   return feat.centroid()
 });
 
+var REFENCE_NO_LOG = ee.FeatureCollection(assetSamplesInput).map(function(feat){
+  return feat.centroid()
+});
+
 REFENCE = REFENCE.filterBounds(TARGET_GRIDS.geometry())
 
-print(REFENCE)
+REFENCE_NO_LOG = REFENCE_NO_LOG.filterBounds(TARGET_GRIDS.geometry())
+
+print(REFENCE.size().add(REFENCE_NO_LOG.size()));
+print('154 amostras de logging e o restante de não logging')
 
 var PTS = REFENCE.reduceColumns(ee.Reducer.toList(4), ['OBJECTID', 'categoria', 'ano','.geo']).get('list').getInfo();
 
@@ -595,12 +616,18 @@ var App = {
     
     var aoi = ee.Geometry.Point(App.options.coord[App.options.coordIndex][3]['coordinates']);
     
-    //var t1 = ee.Date(App.options.coord[0][2]).advance(5, 'days')
-    var t1 = '2023-07-30'
+    
+    var year = String(App.options.coord[App.options.coordIndex][2]);
+    
+    var t1 = year + '-07-30'
+    var t0 = String(parseInt(year) - 1) + '-08-01'
+   
+    //var t1 = String(parseInt(year) + 1) + '-07-30'
+    //var t0 = year + '-08-01'
    
     var collection = ee.ImageCollection('LANDSAT/LC08/C02/T1_L2')
       .filterBounds(aoi)
-      .filterDate('2022-08-01', t1);
+      .filterDate(t0, t1);
    
    
    
@@ -619,6 +646,10 @@ var App = {
     
     App.interfacaApp.panelTimeLapse.clear();
     App.interfacaApp.panelTimeLapse.add(chartLapse);
+    
+    map.addLayer(REFENCE)
+    
+    
   },
   
   timeLapseOnClick: function(id){
@@ -845,6 +876,7 @@ var App = {
         
         var image = App.options.currentImage;
         var label = App.options.currentLabel;
+
         
         var layers = App.interfacaApp.panelMap.widgets().get(0).drawingTools().layers();
         
@@ -877,7 +909,7 @@ var App = {
         
     
         // Combina as bandas de imagem e o label
-        var exportImage = image.addBands(label.rename('label')).double
+        var exportImage = image.addBands(label.rename('label')).double()
         
         var filename = 'sample_' + App.options.coordIndex + '_' + analyst
     
@@ -885,8 +917,8 @@ var App = {
         var exportParams = {
           image: exportImage,
           description: filename,
-          bucket: assetOutputBucket + '_' + analyst,  // Substitua pelo nome do seu bucket
-          fileNamePrefix: filename,
+          bucket: 'imazon',  // Substitua pelo nome do seu bucket
+          fileNamePrefix: assetOutputBucket + '_' + analyst,
           //scale: 30,
           dimensions:256,
           region: image.geometry().bounds(),

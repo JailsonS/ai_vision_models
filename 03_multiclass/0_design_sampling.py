@@ -13,51 +13,7 @@
 
 '''
 
-'''
-    Método 1
 
-1. Calcular a Proporção de Classes Dentro de Cada Chip
-Para cada chip de 256 x 256, calcule a área de cada classe. 
-Isso vai gerar uma proporção interna de classes para cada chip. 
-
-Exemplo:
-    Chip A: Floresta 60%, Pasto 30%, Água 5%, Campo Natural 5%.
-    Chip B: Floresta 20%, Pasto 50%, Água 15%, Campo Natural 15%.
-
-2. Agrupamento de Chips por Similaridade nas Proporções
-Você pode usar métodos de clustering (como k-means ou hierárquico) para agrupar os chips que têm proporções de classes semelhantes. Dessa forma, você vai criar grupos de chips com características internas parecidas em termos de composição das classes.
-
-3. Amostragem Estratificada dos Chips
-Dentro de cada grupo de chips (obtido no passo anterior), selecione uma quantidade proporcional de amostras com base nas classes dominantes. Se, por exemplo, em um cluster a maioria dos chips tem alta proporção de floresta, então a amostragem deve refletir isso.
-Você pode ajustar a quantidade de chips amostrados em cada cluster para garantir que a diversidade de combinações de classes seja representada.
-
-4. Representar a Distribuição de Classes em Todos os Chips
-Para visualizar a distribuição de classes entre todos os chips, você pode criar gráficos como:
-Histograma ou Barplot de Proporção de Classes: Mostre a proporção média de cada classe em todos os chips. Isso ajuda a ver a distribuição das classes em nível global.
-Heatmap de Proporções: Um heatmap pode ser útil para visualizar a composição de classes dentro de cada chip, com os chips representados no eixo X e as classes no eixo Y, com as cores indicando a proporção da classe.
-Boxplot: Para cada classe, exiba a distribuição das proporções de área dentro dos chips. Isso mostrará como cada classe se distribui entre os chips.
-
-
-'''
-
-from sklearn.cluster import KMeans
-import numpy as np
-
-# Exemplo de proporções de classes em 3 chips
-chips_proportions = np.array([
-    [0.6, 0.3, 0.05, 0.05],  # Chip 1: Floresta, Pasto, Água, Campo Natural
-    [0.2, 0.5, 0.15, 0.15],  # Chip 2
-    [0.4, 0.4, 0.1, 0.1],    # Chip 3
-    # Adicione outros chips aqui
-])
-
-# Clusterizar os chips com base nas proporções
-kmeans = KMeans(n_clusters=3, random_state=42).fit(chips_proportions)
-
-# Visualizar os clusters
-clusters = kmeans.labels_
-
-# Agora você pode fazer a amostragem de chips dentro de cada cluster
 
 
 '''
@@ -73,7 +29,8 @@ Objetivo da Amostragem: Selecionar um subconjunto representativo de chips que ma
 2. Estratégias de Amostragem Estratificada para Chips Multiclasse
 
 2.1. Definir a Distribuição de Classes Desejada
-Primeiramente, é necessário estabelecer qual é a distribuição de classes que você deseja obter no conjunto de treinamento. Isso pode ser baseado em:
+Primeiramente, é necessário estabelecer qual é a distribuição de classes que você deseja obter no conjunto de treinamento.
+Isso pode ser baseado em:
 
 Distribuição Real: Manter a proporção real das classes presente no conjunto total.
 Distribuição Balanceada: Equalizar as classes para evitar viés durante o treinamento.
@@ -94,9 +51,10 @@ Passos:
 
 Normalização dos Dados: Certifique-se de que as proporções somam 100% para cada chip.
 Escolha do Algoritmo de Clustering:
-K-Means: Para agrupamentos esféricos e bem separados.
-Hierárquico: Para identificar subgrupos e relações hierárquicas entre clusters.
-DBSCAN: Para detectar clusters de forma arbitrária e lidar com outliers.
+    1. K-Means: Para agrupamentos esféricos e bem separados.
+    2. Hierárquico: Para identificar subgrupos e relações hierárquicas entre clusters.
+    3. DBSCAN: Para detectar clusters de forma arbitrária e lidar com outliers.
+
 Determinação do Número de Clusters:
 Utilize métodos como o Elbow Method ou Silhouette Score para definir o número adequado de clusters.
 Atribuição de Chips aos Clusters: Cada cluster representará um "estrato" na sua amostragem.
@@ -110,9 +68,10 @@ Após agrupar os chips:
 
 Determinar o Tamanho da Amostra Total: Defina quantos chips você deseja na amostra final (e.g., 10.000 chips).
 Alocar Amostras por Cluster:
-Proporcionalmente: Selecionar número de chips de cada cluster proporcional ao tamanho do cluster no conjunto total.
-Equalmente: Selecionar o mesmo número de chips de cada cluster para balancear a representação.
-Seleção Aleatória Dentro de Cada Cluster:
+    1. Proporcionalmente: Selecionar número de chips de cada cluster proporcional ao tamanho do cluster no conjunto total.
+    2. Equalmente: Selecionar o mesmo número de chips de cada cluster para balancear a representação.
+    3. Seleção Aleatória Dentro de Cada Cluster:
+
 Utilize seleção aleatória simples para escolher os chips dentro de cada cluster.
 Certifique-se de que a seleção mantém a diversidade interna do cluster.
 
@@ -194,92 +153,182 @@ Validação Cruzada: Utilize técnicas de validação cruzada para avaliar a per
 Documentação: Mantenha um registro detalhado do processo de amostragem para replicabilidade e análise futura.
 '''
 
-import pandas as pd
+
+'''
+    Import Session
+'''
+
+import sys, os
+
+sys.path.append(os.path.abspath('.'))
+
 import numpy as np
-from sklearn.cluster import KMeans
-from sklearn.preprocessing import StandardScaler
-import matplotlib.pyplot as plt
-import seaborn as sns
+import pandas as pd
+import datetime, os
+import ee, io
+import concurrent, gc
+import tensorflow as tf
 
-# 1. Simulação de Dados - Criando um dataframe de exemplo
-# Suponha que temos 100k chips com 4 classes (Floresta, Pasto, Água, Campo Natural)
-n_chips = 100000
-np.random.seed(42)
+from retry import retry
+from numpy.lib.recfunctions import structured_to_unstructured
 
-# Gerando proporções aleatórias que somam 1 para cada chip
-def generate_random_proportions(n_chips, n_classes):
-    proportions = np.random.dirichlet(np.ones(n_classes), size=n_chips)
-    return proportions
 
-classes = ['Floresta', 'Pasto', 'Água', 'Campo_Natural']
-proportions = generate_random_proportions(n_chips, len(classes))
 
-# Criando DataFrame com as proporções
-df = pd.DataFrame(proportions, columns=classes)
-df['Chip_ID'] = range(1, n_chips + 1)
-df = df.set_index('Chip_ID')
+'''
+    Config Session
+'''
 
-# 2. Análise Exploratória Inicial - Visualizando a distribuição das classes
-sns.histplot(data=df, multiple="stack", palette="viridis", bins=50)
-plt.title('Distribuição Inicial das Proporções de Classes nos Chips')
-plt.xlabel('Proporção')
-plt.ylabel('Número de Chips')
-plt.show()
+ASSET_REFERENCE = 'projects/ee-mapbiomas-imazon/assets/lulc/reference_map/editted_classification_2020_13'
 
-# 3. Agrupamento de Chips por Perfis de Classes (Clustering)
-# Normalização
-scaler = StandardScaler()
-scaled_data = scaler.fit_transform(df)
+ASSET_MOSAIC = ''
 
-# KMeans Clustering
-n_clusters = 10  # Definindo um número arbitrário de clusters
-kmeans = KMeans(n_clusters=n_clusters, random_state=42)
-df['Cluster'] = kmeans.fit_predict(scaled_data)
+BAND_NAMES = [
+    'B2', 'B3', 'B4', 'B8', 'B11', 'B12'
+]
 
-# 4. Definição da Amostra Estratificada - Seleção Proporcional de Chips
-# Vamos selecionar 10k chips no total
-n_sample = 10000
-samples_per_cluster = (df['Cluster'].value_counts(normalize=True) * n_sample).astype(int)
+NEW_BAND_NAMES = [
+    'blue','green', 'red', 'nir','swir1', 'swir2'
+]
 
-# Selecionando chips aleatoriamente dentro de cada cluster
-sampled_df = pd.DataFrame()
+NUM_CLASSES = 5
 
-for cluster in range(n_clusters):
-    cluster_chips = df[df['Cluster'] == cluster]
-    sampled_chips = cluster_chips.sample(n=samples_per_cluster[cluster], random_state=42)
-    sampled_df = pd.concat([sampled_df, sampled_chips])
+'''
 
-# 5. Verificação da Distribuição Final
-final_distribution = sampled_df[classes].mean()
+    Request Template    
 
-print("Distribuição Final das Classes na Amostra Selecionada:")
-print(final_distribution)
+'''
 
-# 6. Visualização da Distribuição Final das Classes na Amostra Selecionada
-sns.histplot(data=sampled_df[classes], multiple="stack", palette="viridis", bins=50)
-plt.title('Distribuição Final das Proporções de Classes nos Chips Amostrados')
-plt.xlabel('Proporção')
-plt.ylabel('Número de Chips')
-plt.show()
+EXECUTOR = concurrent.futures.ThreadPoolExecutor(max_workers=29)
 
-# 7. Visualização Adicional - Scatter Plot dos Chips em 2D usando PCA
-from sklearn.decomposition import PCA
+# image resolution in meters
+SCALE = 10
 
-pca = PCA(n_components=2)
-pca_result = pca.fit_transform(scaled_data)
+# pre-compute a geographic coordinate system.
+proj = ee.Projection('EPSG:4326').atScale(SCALE).getInfo()
 
-plt.figure(figsize=(10, 8))
-sns.scatterplot(x=pca_result[:, 0], y=pca_result[:, 1], hue=df['Cluster'], palette="viridis", s=10)
-plt.title('Distribuição dos Chips em 2D (PCA)')
-plt.xlabel('PC1')
-plt.ylabel('PC2')
-plt.show()
+# get scales in degrees out of the transform.
+SCALE_X = proj['transform'][0]
+SCALE_Y = -proj['transform'][4]
 
-# 8. Análise de Correlação entre as Proporções das Classes
-correlation_matrix = df[classes].corr()
+# patch size in pixels.
+PATCH_SIZE = 256
 
-plt.figure(figsize=(8, 6))
-sns.heatmap(correlation_matrix, annot=True, cmap="coolwarm", vmin=-1, vmax=1)
-plt.title('Matriz de Correlação entre as Proporções das Classes')
-plt.show()
+# offset to the upper left corner.
+OFFSET_X = -SCALE_X * PATCH_SIZE / 2
+OFFSET_Y = -SCALE_Y * PATCH_SIZE / 2
 
+
+# request template.
+REQUEST = {
+      'fileFormat': 'NPY',
+      'grid': {
+          'dimensions': {
+              'width': PATCH_SIZE,
+              'height': PATCH_SIZE
+          },
+          'affineTransform': {
+              'scaleX': SCALE_X,
+              'shearX': 0,
+              'shearY': 0,
+              'scaleY': SCALE_Y,
+          },
+          'crsCode': proj['crs']
+      }
+  }
+
+
+
+'''
+    Functions
+'''
+
+
+
+def serialize(inputs: np.ndarray, labels: np.ndarray) -> bytes:
+    features = {
+        name: tf.train.Feature(
+            bytes_list=tf.train.BytesList(value=[tf.io.serialize_tensor(data).numpy()])
+        )
+        for name, data in {"inputs": inputs, "labels": labels}.items()
+    }
+    example = tf.train.Example(features=tf.train.Features(feature=features))
+    return example.SerializeToString()
+
+
+@retry(delay=0.5)
+def get_patch(items):
+
+    """Get a patch centered on the coordinates, as a numpy array."""
+
+    response = {'error': '', 'item':items}
+    
+    coords = items[1][1]
+
+    image = stack
+
+    if image == None:
+        return None, None, None
+
+    request = dict(REQUEST)
+    request['expression'] = image
+    request['grid']['affineTransform']['translateX'] = coords[0] + OFFSET_X
+    request['grid']['affineTransform']['translateY'] = coords[1] + OFFSET_Y
+
+
+    # criação do objeto Affine usando os parâmetros fornecidos
+    # transform = Affine(
+    #     request['grid']['affineTransform']['scaleX'], 
+    #     request['grid']['affineTransform']['shearX'], 
+    #     request['grid']['affineTransform']['translateX'],
+    #     request['grid']['affineTransform']['shearY'],
+    #     request['grid']['affineTransform']['scaleY'], 
+    #     request['grid']['affineTransform']['translateY']
+    # )
+
+    # for georeference convertion
+    # response['affine'] = transform
+    
+    try:
+        data = np.load(io.BytesIO(ee.data.computePixels(request)))
+    except ee.ee_exception.EEException as e:
+        response['error']= e
+        return None, response, items[0]
+    return data, response, items[0]
+
+
+def export(items, filename):
+
+    future_to_point = {EXECUTOR.submit(get_patch, item): item for item in items}
+
+    writer = tf.io.TFRecordWriter(filename)
+
+    for future in concurrent.futures.as_completed(future_to_point):
+        
+        data, label = future.result()
+
+        data = structured_to_unstructured(data)
+        label = structured_to_unstructured(label)
+        
+        serialized = serialize(data, label)
+
+        writer.write(serialized)
+        writer.flush()
+    
+    writer.close()
+
+
+
+'''
+    Input 
+'''
+
+reference_data = ee.Image(ASSET_REFERENCE).rename('label')
+
+sensor_data = ee.Image(ASSET_MOSAIC)
+
+stack = sensor_data.addBands(reference_data)
+
+
+'''
+    Sort Random Samples 
+'''

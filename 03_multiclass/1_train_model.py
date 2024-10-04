@@ -67,7 +67,7 @@ config = {
 }
 
 '''
-    Config Info
+    Base functions
 '''
 
 
@@ -124,7 +124,8 @@ dataset_val = tf.data.TFRecordDataset([config['val_dataset']['path']])\
 '''
 
 
-dataset_train = apply_augmentation(dataset_train).repeat()\
+dataset_train = apply_augmentation(dataset_train)\
+    .repeat()\
     .batch(config['model_params']['batch_size'])\
     .prefetch(tf.data.AUTOTUNE)
 
