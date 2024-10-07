@@ -63,8 +63,8 @@ config = {
             running_precision, 
         ],
         'save_ckpt': True,
-        'batch_size':5,
-        'epochs': 1,
+        'batch_size':12,
+        'epochs': 50,
         'output_model': '03_multiclass/model',
         'output_ckpt':'03_multiclass/model/ckpt',
         'optimizer': tf.keras.optimizers.Nadam(learning_rate=0.001)
