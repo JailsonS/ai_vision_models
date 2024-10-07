@@ -10,8 +10,8 @@ def remove_cloud_s2(collection: ee.imagecollection.ImageCollection) -> ee.imagec
         .map(lambda image: 
             image.updateMask(image.select('cs').gte(CLEAR_THRESHOLD))
                     .copyProperties(image)
-                    .copyProperties(image, ['system:footprint'])
-                    .copyProperties(image, ['system:time_start'])
+                    #.copyProperties(image, ['system:footprint'])
+                    #.copyProperties(image, ['system:time_start'])
         )
     
     return colFreeCloud

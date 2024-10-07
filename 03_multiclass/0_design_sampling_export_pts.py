@@ -173,14 +173,24 @@ from retry import retry
 from numpy.lib.recfunctions import structured_to_unstructured
 from utils.helpers import *
 from utils.index import *
+from pprint import pprint
+
+PROJECT = 'ee-mapbiomas-imazon'
+
+# ee.Authenticate()
+ee.Initialize(project=PROJECT)
 
 '''
     Config Session
 '''
 
+PATH_DIR = '/home/jailson/Imazon/dl_applications/source/03_multiclass'
+
 ASSET_REFERENCE = 'projects/ee-mapbiomas-imazon/assets/lulc/reference_map/editted_classification_2020_13'
 
 ASSET_SENTINEL = 'COPERNICUS/S2_HARMONIZED'
+
+ASSET_OUTPUT = 'projects/ee-mapbiomas-imazon/assets/lulc/reference_map/samples_seeds_strat'
 
 SENTINEL_NEW_NAMES = [
     'blue',
@@ -211,6 +221,26 @@ FEATURES = [
     'gvs',
     'ndfi', 
     'csfi'
+]
+
+
+'''
+
+    Proportion
+
+'''
+
+N_SAMPLES = 3000
+
+PROPORTION = [
+    [3, 'SA-23-Y-C',0.6],
+    [9,'SA-23-Y-C',0.10],
+    [12,'SA-23-Y-C',0.05],
+    [15,'SA-23-Y-C',0.26],
+    [18,'SA-23-Y-C',0.10],
+    [30,'SA-23-Y-C',0.05],
+    [24,'SA-23-Y-C',0.05],
+    [33,'SA-23-Y-C',0.05]
 ]
 
 '''
@@ -281,7 +311,7 @@ def get_patch(items):
 
     """Get a patch centered on the coordinates, as a numpy array."""
 
-    response = {'error': '', 'item':items}
+    response = {'error': '', 'item': items}
     
     coords = items[1][1]
 
@@ -321,7 +351,7 @@ def export(items, filename):
 
     future_to_point = {EXECUTOR.submit(get_patch, item): item for item in items}
 
-    writer = tf.io.TFRecordWriter(filename)
+    # writer = tf.io.TFRecordWriter(filename)
 
     for future in concurrent.futures.as_completed(future_to_point):
         
@@ -329,19 +359,23 @@ def export(items, filename):
 
         data = structured_to_unstructured(data)
         label = structured_to_unstructured(label)
-        
-        serialized = serialize(data, label)
 
-        writer.write(serialized)
-        writer.flush()
+        print(data.shape, label.shape)
+        
+        # serialized = serialize(data, label)
+
+        # writer.write(serialized)
+        # writer.flush()
     
-    writer.close()
+    # writer.close()
 
 
 
 '''
     Input 
 '''
+
+df_proportion = pd.DataFrame(PROPORTION, columns=['classe','grid_name', 'percent'])
 
 roi = ee.Geometry.Polygon([
     [
@@ -370,22 +404,45 @@ roi = ee.Geometry.Polygon([
 
 reference_data = ee.Image(ASSET_REFERENCE).rename('label')
 
-collection = ee.ImageCollection(ASSET_SENTINEL)\
-    .filterDate('2020-05-30', '2020-10-31')\
-    .filterBounds(roi)\
-    .filter('CLOUDY_PIXEL_PERCENTAGE < 30')\
-    .select(ASSET_IMAGES['s2']['bandNames'], ASSET_IMAGES['s2']['newBandNames'])
-
-collection_w_cloud = remove_cloud_s2(collection)
-
-collection_w_cloud = collection_w_cloud\
-    .map(lambda image: get_fractions(image))\
-    .map(lambda image: get_ndfi(image))\
-    .map(lambda image: get_csfi(image))
-
-image_sensor = ee.Image(collection_w_cloud.reduce(ee.Reducer.median())).clip(roi)
+# collection = ee.ImageCollection(ASSET_SENTINEL)\
+#     .filterDate('2020-05-30', '2020-10-31')\
+#     .filterBounds(roi)\
+#     .filter('CLOUDY_PIXEL_PERCENTAGE < 30')\
+#     .select(ASSET_IMAGES['s2']['bandNames'], ASSET_IMAGES['s2']['newBandNames'])
+# 
+# collection_w_cloud = remove_cloud_s2(collection)
+# 
+# collection_w_cloud = collection_w_cloud\
+#     .map(lambda image: get_fractions(image))\
+#     .map(lambda image: get_ndfi(image))\
+#     .map(lambda image: get_csfi(image))
+# 
+# image_sensor = ee.Image(collection_w_cloud.reduce(ee.Reducer.median())).clip(roi)
 
 
 '''
+    
     Sort Random Samples 
+
 '''
+
+samples_strat = ee.Image(reference_data).stratifiedSample(
+    numPoints=N_SAMPLES,
+    region=roi,
+    scale=10,
+    classBand='label',
+    dropNulls=True,
+    geometries=True,
+    classValues=[x[0] for x in PROPORTION],
+    classPoints=[int(x[2] * N_SAMPLES) for x in PROPORTION]
+)
+
+
+task = ee.batch.Export.table.toAsset(
+    collection=samples_strat,
+    description='samples_strat',
+    assetId=ASSET_OUTPUT,
+)
+
+task.start()
+
