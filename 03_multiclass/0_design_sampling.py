@@ -171,8 +171,8 @@ import tensorflow as tf
 
 from retry import retry
 from numpy.lib.recfunctions import structured_to_unstructured
-
-
+from utils.helpers import *
+from utils.index import *
 
 '''
     Config Session
@@ -180,17 +180,38 @@ from numpy.lib.recfunctions import structured_to_unstructured
 
 ASSET_REFERENCE = 'projects/ee-mapbiomas-imazon/assets/lulc/reference_map/editted_classification_2020_13'
 
-ASSET_MOSAIC = ''
+ASSET_SENTINEL = 'COPERNICUS/S2_HARMONIZED'
 
-BAND_NAMES = [
-    'B2', 'B3', 'B4', 'B8', 'B11', 'B12'
+SENTINEL_NEW_NAMES = [
+    'blue',
+    'green',
+    'red',
+    'red_edge_1',
+    'nir',
+    'swir1',
+    'swir2',
+    'pixel_qa'
 ]
 
-NEW_BAND_NAMES = [
-    'blue','green', 'red', 'nir','swir1', 'swir2'
-]
+ASSET_IMAGES = {
+    's2':{
+        'idCollection': ASSET_SENTINEL,
+        'bandNames': ['B2', 'B3', 'B4', 'B5', 'B8', 'B11', 'B12', 'QA60'],
+        'newBandNames': SENTINEL_NEW_NAMES,
+    }
+}
 
 NUM_CLASSES = 5
+
+FEATURES = [
+    'gv', 
+    'npv', 
+    'soil', 
+    'cloud',
+    'gvs',
+    'ndfi', 
+    'csfi'
+]
 
 '''
 
@@ -264,7 +285,7 @@ def get_patch(items):
     
     coords = items[1][1]
 
-    image = stack
+    image = image_sensor
 
     if image == None:
         return None, None, None
@@ -322,11 +343,47 @@ def export(items, filename):
     Input 
 '''
 
+roi = ee.Geometry.Polygon([
+    [
+      [
+        -48.00607649166679,
+        -4.003006946880755
+      ],
+      [
+        -46.48721662838554,
+        -4.003006946880755
+      ],
+      [
+        -46.48721662838554,
+        -2.994161602823806
+      ],
+      [
+        -48.00607649166679,
+        -2.994161602823806
+      ],
+      [
+        -48.00607649166679,
+        -4.003006946880755
+      ]
+    ]
+])
+
 reference_data = ee.Image(ASSET_REFERENCE).rename('label')
 
-sensor_data = ee.Image(ASSET_MOSAIC)
+collection = ee.ImageCollection(ASSET_SENTINEL)\
+    .filterDate('2020-05-30', '2020-10-31')\
+    .filterBounds(roi)\
+    .filter('CLOUDY_PIXEL_PERCENTAGE < 30')\
+    .select(ASSET_IMAGES['s2']['bandNames'], ASSET_IMAGES['s2']['newBandNames'])
 
-stack = sensor_data.addBands(reference_data)
+collection_w_cloud = remove_cloud_s2(collection)
+
+collection_w_cloud = collection_w_cloud\
+    .map(lambda image: get_fractions(image))\
+    .map(lambda image: get_ndfi(image))\
+    .map(lambda image: get_csfi(image))
+
+image_sensor = ee.Image(collection_w_cloud.reduce(ee.Reducer.median())).clip(roi)
 
 
 '''

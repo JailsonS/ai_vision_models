@@ -50,6 +50,26 @@ def get_ndfi(image: ee.image.Image) -> ee.image.Image:
     return image
 
 
+def get_csfi(image: ee.image.Image) -> ee.image.Image:
+    """Calculate CSFI and add it to image fractions
+
+    Parameters:
+        image (ee.Image): Fractions image containing the bands:
+        gv, npv, soil, cloud
+
+    Returns:
+        ee.Image: Fractions image with csfi bands
+    """
+
+    csfi = image.expression(
+        "(float(b('gv') - b('shade'))/(b('gv') + b('shade')))")
+
+    csfi = csfi.rename(['csfi'])
+    # csfi = csfi.multiply(100).add(100).byte().rename(['csfi'])
+
+    image = image.addBands(csfi)
+
+    return ee.Image(image)
 
 
 

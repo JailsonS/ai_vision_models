@@ -10,12 +10,14 @@ var analystList = {
 
 var analyst = analystList['jailson'];
 
+
+
 var assetCartas = 'projects/mapbiomas-workspace/AUXILIAR/cartas'
 var assetNICFI = 'projects/planet-nicfi/assets/basemaps/americas';
 var asset = 'projects/imazon-simex/DEGRADATION/freq_logging_2022_2023';
 var assetCol = 'COPERNICUS/S2_HARMONIZED';
 var assetPredictions = 'projects/ee-simex/assets/classification';
-var assetOutputBucket = 'imazon/simex/ai_dataset';
+var assetOutputBucket = 'simex/ai_dataset/sample';
 
 var assetSamplesNonLog = 'projects/ee-simex/assets/auxiliar/samples_non_logging';
 var assetSamplesInput = 'projects/ee-simex/assets/auxiliar/samples_logging'
@@ -111,8 +113,20 @@ print('154 amostras de logging e o restante de não logging')
 var PTS = REFENCE.reduceColumns(ee.Reducer.toList(4), ['OBJECTID', 'categoria', 'ano','.geo']).get('list').getInfo();
 
 
+// check analyst
+switch (analyst){
+  case '0':
+    PTS = PTS.slice(0, 50)
+    break;
+  case '1':
+    PTS = PTS.slice(51, 100)
+    break;
+  case '2':
+    PTS = PTS.slice(100, 151)
+    break;
+}
 
-
+print(PTS)
 
 
 var visParams = {
@@ -918,7 +932,7 @@ var App = {
           image: exportImage,
           description: filename,
           bucket: 'imazon',  // Substitua pelo nome do seu bucket
-          fileNamePrefix: assetOutputBucket + '_' + analyst,
+          fileNamePrefix: assetOutputBucket + '_' + filename + '_' + analyst,
           //scale: 30,
           dimensions:256,
           region: image.geometry().bounds(),
