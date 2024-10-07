@@ -29,40 +29,45 @@ from models.UnetDefault import Unet
 
 config = {
 
-    'base_path': '',
+    'base_path': '03_multiclass',
 
     'channels': {
-        'red': 0,
-        'green': 1,
-        'blue': 2,
-        'swir1': 3,
-        'nir': 4
+        'gv':0, 
+        'npv':1, 
+        'soil':2, 
+        'cloud':3,
+        'gvs':4,
+        'ndfi':5, 
+        #'csfi':6
     },
 
     'chip_size': 256,
 
     'train_dataset': {
-        'path': '',
-        'size': None
+        'path': '03_multiclass/data/train.tfrecord',
+        'size': 1800 * 4
     },
     'val_dataset': {
-        'path': '',
-        'size': None
+        'path': '03_multiclass/data/val.tfrecord',
+        'size': 600 * 4
     },
 
-    'number_output_classes': 5,
+    'number_output_classes': 8,
 
     'model_params': {
-        'model_name':'',
-        'lr': 0.001,
-        'loss':None,
-        'metrics':[],
+        'model_name':'multiclass_s2_v1',
+        'loss': soft_dice_loss,
+        'metrics':[
+            running_recall, 
+            running_f1, 
+            running_precision, 
+        ],
         'save_ckpt': True,
-        'batch_size':None,
-        'epochs': 50,
-        'output_model': '',
-        'output_ckpt':'',
-        'optimizer': None
+        'batch_size':5,
+        'epochs': 1,
+        'output_model': '03_multiclass/model',
+        'output_ckpt':'03_multiclass/model/ckpt',
+        'optimizer': tf.keras.optimizers.Nadam(learning_rate=0.001)
     }
 }
 
@@ -82,7 +87,7 @@ def read_example(serialized: bytes) -> tuple[tf.Tensor, tf.Tensor]:
 
 
     inputs = tf.io.parse_tensor(example["inputs"], tf.float32)
-    labels = tf.io.parse_tensor(example["labels"], tf.int64)
+    labels = tf.io.parse_tensor(example["labels"], tf.int8)
 
     # tensorFlow can't infer the shapes, so we set them explicitly.
     inputs.set_shape([None, None, len(config['channels'])])
@@ -101,6 +106,30 @@ def replace_nan(data, label):
 
     return data, label
 
+def normalize_channels(data, label):
+
+    feature_index = list(config['channels'].values())
+
+    data_filtered = tf.gather(data, tf.constant(feature_index), axis=-1)
+
+    unstacked = tf.unstack(data_filtered, axis=2)
+
+    data_norm = []
+
+    for i in unstacked:
+        min_arr = tf.reduce_min(i)
+        max_arr = tf.reduce_max(i)
+
+        tensor = tf.divide(
+            tf.subtract(i, min_arr),
+            tf.subtract(max_arr, min_arr)
+        )
+
+        data_norm.append(tensor)
+
+    data_normalized = tf.stack(data_norm, axis=2)
+
+    return data_normalized, label
 
 '''
 
@@ -110,10 +139,14 @@ def replace_nan(data, label):
 
 
 dataset_train = tf.data.TFRecordDataset([config['train_dataset']['path']])\
-    .map(read_example)
+    .map(read_example)\
+    .map(replace_nan)\
+    .map(normalize_channels)
 
 dataset_val = tf.data.TFRecordDataset([config['val_dataset']['path']])\
-    .map(read_example)
+    .map(read_example)\
+    .map(replace_nan)\
+    .map(normalize_channels)
 
 
 
@@ -162,7 +195,7 @@ path_ckpt = os.path.dirname(config['model_params']['output_ckpt'])
 
 path_log_dir = f"{config['base_path']}/model/logs/" + datetime.datetime.now().strftime("%Y%m%d-%H%M%S")
 
-csv_logger = CSVLogger(f'{config['base_path']}/model/{config["model_params"]['model_name']}.csv', append=True, separator=';')
+csv_logger = CSVLogger(f"{config['base_path']}/model/{config['model_params']['model_name']}.csv", append=True, separator=';')
 
 
 # check if it has ckpt points
@@ -196,7 +229,7 @@ tensorboard_callback = tf.keras.callbacks.TensorBoard(log_dir=path_log_dir, hist
 model.fit(
     x=dataset_train,
     epochs=config['model_params']['epochs'],
-    steps_per_epoch=int(),
+    steps_per_epoch=int(config['train_dataset']['size'] / config['model_params']['batch_size']),
     validation_data=dataset_val,
-    validation_steps=int(),
+    validation_steps=int(config['val_dataset']['size'] / config['model_params']['batch_size']),
     callbacks=[cp_callback, tensorboard_callback, earlystopper_callback, csv_logger])
