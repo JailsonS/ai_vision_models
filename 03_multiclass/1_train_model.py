@@ -38,7 +38,17 @@ config = {
         'cloud':3,
         'gvs':4,
         'ndfi':5, 
-        #'csfi':6
+        'csfi':6
+    },
+
+    'channels_selected': {
+        'gv':0, 
+        'npv':1, 
+        'soil':2, 
+        'cloud':3,
+        'gvs':4,
+        'ndfi':5, 
+        # 'csfi':6
     },
 
     'chip_size': 256,
@@ -56,18 +66,22 @@ config = {
 
     'model_params': {
         'model_name':'multiclass_s2_v1',
-        'loss': soft_dice_loss,
+        'loss': soft_dice_loss_multi,
         'metrics':[
-            running_recall, 
-            running_f1, 
-            running_precision, 
+            running_recall_multi, 
+            running_f1_multi, 
+            running_precision_multi, 
+            tf.keras.metrics.OneHotIoU(
+                num_classes=8,
+                target_class_ids=[0,1,2,3,4,5,6,7],
+            )
         ],
         'save_ckpt': True,
         'batch_size':15,
         'epochs': 50,
         'output_model': '03_multiclass/model',
         'output_ckpt':'03_multiclass/model/ckpt',
-        'optimizer': tf.keras.optimizers.Nadam(learning_rate=0.001)
+        'optimizer': tf.keras.optimizers.Adam(learning_rate=0.0001)
     }
 }
 
@@ -97,19 +111,15 @@ def read_example(serialized: bytes) -> tuple[tf.Tensor, tf.Tensor]:
     return (inputs, one_hot_labels)
 
 def replace_nan(data, label):
-    label_temp = tf.add(label, 1)
-    label = tf.where(tf.equal(label_temp, 2.0), 0.0, label_temp)
 
-    data = tf.where(tf.math.is_nan(data), 0., data)
-    label = tf.where(tf.math.is_nan(label), 0., label)
+    data = tf.where(tf.math.is_nan(data), tf.zeros_like(data), data)
+    label = tf.where(tf.math.is_nan(label), tf.zeros_like(label), label)
 
     return data, label
 
 def normalize_channels(data, label):
 
-    feature_index = list(config['channels'].values())
-
-    # feature_index = feature_index[:-1]
+    feature_index = list(config['channels_selected'].values())
 
     data_filtered = tf.gather(data, tf.constant(feature_index), axis=-1)
 
@@ -162,7 +172,6 @@ dataset_train = apply_augmentation(dataset_train)\
     .batch(config['model_params']['batch_size'])\
     .prefetch(tf.data.AUTOTUNE)
 
-
 dataset_val = dataset_val.batch(1).repeat()
 
 
@@ -175,10 +184,11 @@ dataset_val = dataset_val.batch(1).repeat()
 '''
 
 model = Unet(
-    list(dict(config['channels']).values()), 
+    list(dict(config['channels_selected']).values()), 
     optimizer=config['model_params']['optimizer'], 
     loss=config['model_params']['loss'], 
-    metrics=config['model_params']['metrics']
+    metrics=config['model_params']['metrics'],
+    multiclass=True
 )
 
 model = model.getModel(n_classes=config['number_output_classes'])

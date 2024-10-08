@@ -7,11 +7,12 @@ from tensorflow.keras import backend as  K
 
 class Unet():
 
-    def __init__(self, bands, optimizer=None, loss='MeanSquaredError', metrics=[]) -> None:
+    def __init__(self, bands, optimizer=None, loss='MeanSquaredError', metrics=[], multiclass=False) -> None:
         self.bands = bands
         self.optimizer = optimizer if optimizer != None else 'SGD'
         self.metrics = metrics,
         self.loss = loss
+        self.multiclass = multiclass
 
     def _convBlock(self, input_tensor, n_filters):
 
@@ -72,7 +73,11 @@ class Unet():
         decoder1 = self.decoderBlock(decoder2, encoder1, 64) # 128
         decoder0 = self.decoderBlock(decoder1, encoder0, 32) # 256
 
-        outputs = tf.keras.layers.Conv2D(n_classes, kernel_size=(1, 1),activation='sigmoid')(decoder0)
+        if self.multiclass == True:
+            outputs = tf.keras.layers.Conv2D(n_classes, kernel_size=(1, 1), activation='softmax')(decoder0)
+        else:
+            outputs = tf.keras.layers.Conv2D(n_classes, kernel_size=(1, 1),activation='sigmoid')(decoder0)
+        
 
         model = tf.keras.models.Model(inputs=[inputs], outputs=[outputs])
 

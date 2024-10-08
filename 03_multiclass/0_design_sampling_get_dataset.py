@@ -442,8 +442,8 @@ vali_size = int(len(list_pts) * VAL_RATIO)
 
 items = {
     #'val': list_pts[train_size:train_size + vali_size],
-    'train': list_pts[:train_size],
-    #'test': list_pts[train_size + vali_size:],
+    #'train': list_pts[:train_size],
+    'test': list_pts[train_size + vali_size:],
 }
 
 
