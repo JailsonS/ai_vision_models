@@ -189,7 +189,7 @@ ee.Initialize(project=PROJECT)
 
 PATH_DIR = '/home/jailson/Imazon/dl_applications/source/03_multiclass'
 
-ASSET_REFERENCE = 'projects/ee-mapbiomas-imazon/assets/lulc/reference_map/editted_classification_2020_13'
+ASSET_REFERENCE = 'projects/ee-mapbiomas-imazon/assets/lulc/reference_map/editted_classification_2020_14'
 
 ASSET_SENTINEL = 'COPERNICUS/S2_HARMONIZED'
 
@@ -224,6 +224,28 @@ FEATURES = [
     'gvs',
     'ndfi', 
     'csfi'
+]
+
+REMAP_FROM = [
+    3,
+    9,
+    12,
+    15,
+    18,
+    24,
+    30,
+    33
+]
+
+REMAP_TO = [
+    1,
+    2,
+    3,
+    4,
+    5,
+    6,
+    7,
+    8 
 ]
 
 
@@ -354,9 +376,7 @@ def export(items, filename):
         data_unstructured = structured_to_unstructured(data)
 
         input = data_unstructured[:,:,:-1].astype(np.float32)
-        label = input[:,:,-1:].astype(np.int8)
-
-        print(input.shape, label.shape)
+        label = data_unstructured[:,:,-1:].astype(np.int8)
 
         serialized = serialize(input, label)
 
@@ -373,32 +393,11 @@ def export(items, filename):
 
 '''
 
-roi = ee.Geometry.Polygon([
-    [
-      [
-        -48.00607649166679,
-        -4.003006946880755
-      ],
-      [
-        -46.48721662838554,
-        -4.003006946880755
-      ],
-      [
-        -46.48721662838554,
-        -2.994161602823806
-      ],
-      [
-        -48.00607649166679,
-        -2.994161602823806
-      ],
-      [
-        -48.00607649166679,
-        -4.003006946880755
-      ]
-    ]
-])
+reference_data = ee.Image(ASSET_REFERENCE).rename('label').remap(REMAP_FROM, REMAP_TO, 0, 'label')\
+    .rename('label')
 
-reference_data = ee.Image(ASSET_REFERENCE).rename('label')
+
+roi = reference_data.geometry()
 
 collection = ee.ImageCollection(ASSET_SENTINEL)\
     .filterDate('2020-05-30', '2020-10-31')\
@@ -426,8 +425,8 @@ seeds_reference = ee.FeatureCollection(ASSET_SEEDS_REFERENCE)
 
 
 stack_info = ee.Image(image_sensor).select([f'{x}_median' for x in FEATURES])\
-    .addBands(reference_data)\
-    .float()
+    .addBands(ee.Image(reference_data).clip(roi))
+
 
 
 list_pts = seeds_reference.reduceColumns(ee.Reducer.toList(), ['.geo']).get('list').getInfo()
@@ -442,9 +441,9 @@ vali_size = int(len(list_pts) * VAL_RATIO)
 
 
 items = {
-    # 'train': list_pts[:train_size],
-    # 'val': list_pts[train_size:train_size + vali_size],
-    'test': list_pts[train_size + vali_size:],
+    #'val': list_pts[train_size:train_size + vali_size],
+    'train': list_pts[:train_size],
+    #'test': list_pts[train_size + vali_size:],
 }
 
 

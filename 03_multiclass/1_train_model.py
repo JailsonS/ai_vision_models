@@ -38,7 +38,7 @@ config = {
         'cloud':3,
         'gvs':4,
         'ndfi':5, 
-        'csfi':6
+        #'csfi':6
     },
 
     'chip_size': 256,
@@ -63,7 +63,7 @@ config = {
             running_precision, 
         ],
         'save_ckpt': True,
-        'batch_size':12,
+        'batch_size':5,
         'epochs': 50,
         'output_model': '03_multiclass/model',
         'output_ckpt':'03_multiclass/model/ckpt',
@@ -109,7 +109,7 @@ def normalize_channels(data, label):
 
     feature_index = list(config['channels'].values())
 
-    feature_index = feature_index[:-1]
+    # feature_index = feature_index[:-1]
 
     data_filtered = tf.gather(data, tf.constant(feature_index), axis=-1)
 
@@ -149,8 +149,10 @@ dataset_val = tf.data.TFRecordDataset([config['val_dataset']['path']])\
     .map(replace_nan)\
     .map(normalize_channels)
 
+for data, label in dataset_train.take(15):
+   print(tf.reduce_min(label))
 
-
+exit()
 '''
 
     Apply Data Augmentation

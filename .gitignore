@@ -17,3 +17,5 @@ models/__pycache__
 02_patches/utils/__pycache__
 accuracy_c9
 03_multiclass/data
+03_multiclass/model
+03_multiclass/notebooks
