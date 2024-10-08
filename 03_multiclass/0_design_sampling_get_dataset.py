@@ -214,8 +214,6 @@ ASSET_IMAGES = {
     }
 }
 
-NUM_CLASSES = 5
-
 FEATURES = [
     'gv', 
     'npv', 

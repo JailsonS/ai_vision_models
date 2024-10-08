@@ -81,7 +81,7 @@ config = {
         'epochs': 50,
         'output_model': '03_multiclass/model',
         'output_ckpt':'03_multiclass/model/ckpt',
-        'optimizer': tf.keras.optimizers.Adam(learning_rate=0.0001)
+        'optimizer': tf.keras.optimizers.Adam(learning_rate=0.001)
     }
 }
 
@@ -113,9 +113,13 @@ def read_example(serialized: bytes) -> tuple[tf.Tensor, tf.Tensor]:
 def replace_nan(data, label):
 
     data = tf.where(tf.math.is_nan(data), tf.zeros_like(data), data)
+    data = tf.where(tf.math.is_inf(data), tf.zeros_like(data), data)
+
     label = tf.where(tf.math.is_nan(label), tf.zeros_like(label), label)
+    label = tf.where(tf.math.is_inf(label), tf.zeros_like(label), label)
 
     return data, label
+
 
 def normalize_channels(data, label):
 
@@ -168,6 +172,7 @@ dataset_val = tf.data.TFRecordDataset([config['val_dataset']['path']])\
 
 
 dataset_train = apply_augmentation(dataset_train)\
+    .map(replace_nan)\
     .repeat()\
     .batch(config['model_params']['batch_size'])\
     .prefetch(tf.data.AUTOTUNE)
@@ -175,6 +180,9 @@ dataset_train = apply_augmentation(dataset_train)\
 dataset_val = dataset_val.batch(1).repeat()
 
 
+# for inputs, labels in dataset_train.take(15):
+#     tf.debugging.check_numerics(inputs, 'Input contains NaN or Inf')
+#     tf.debugging.check_numerics(labels, 'Labels contain NaN or Inf')
 
 
 '''
@@ -243,6 +251,7 @@ model.fit(
     validation_data=dataset_val,
     validation_steps=int(config['val_dataset']['size'] / config['model_params']['batch_size']),
     callbacks=[cp_callback, tensorboard_callback, earlystopper_callback, csv_logger])
+
 
 
 model.save(config['base_path'] + '/model/lulc_v1.keras')

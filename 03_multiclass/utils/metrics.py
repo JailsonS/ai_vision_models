@@ -10,19 +10,32 @@ def running_recall(y_true, y_pred):
 
 
 def running_recall_multi(y_true, y_pred):
-
-    # Converte as previsões para a classe com maior probabilidade
-    y_pred = K.argmax(y_pred, axis=-1)
-    y_true = K.argmax(y_true, axis=-1)
+    """
+    Calcula o recall para tarefas de classificação multi-classe usando rótulos one-hot.
     
-    # Calcula o número de verdadeiros positivos (TP) e TP + FN
-    TP = K.sum(K.cast(K.equal(y_true, y_pred), dtype='float32'))
-    TP_FN = K.sum(K.cast(K.greater_equal(y_true, 0), dtype='float32'))
-    
-    # Calcula recall
-    recall = TP / (TP_FN + K.epsilon())
-    return recall
+    Parâmetros:
+    - y_true: tensor de rótulos verdadeiros, codificados em one-hot
+    - y_pred: tensor de previsões do modelo, em probabilidade ou logit
 
+    Retorna:
+    - recall: recall global (ou média ponderada) entre todas as classes
+    """
+    # Converter previsões para binário (0 ou 1)
+    y_pred_binary = K.round(K.clip(y_pred, 0, 1))  # Caso o y_pred seja probabilístico
+
+    # Verdadeiros Positivos (TP): predições corretas da classe positiva
+    TP = K.sum(K.round(K.clip(y_true * y_pred_binary, 0, 1)), axis=0)
+    
+    # Falsos Negativos (FN): predições incorretas onde era positivo, mas previu negativo
+    FN = K.sum(K.round(K.clip(y_true * (1 - y_pred_binary), 0, 1)), axis=0)
+    
+    # Recall para cada classe
+    recall_per_class = TP / (TP + FN + K.epsilon())  # Adicionar epsilon para evitar divisão por 0
+    
+    # Média de recall ponderada (por classe)
+    weighted_recall = K.mean(recall_per_class)
+    
+    return weighted_recall
 
 
 
@@ -35,15 +48,40 @@ def running_precision(y_true, y_pred):
 
 
 def running_precision_multi(y_true, y_pred):
-    y_pred = K.argmax(y_pred, axis=-1)
-    y_true = K.argmax(y_true, axis=-1)
+    # y_pred = K.argmax(y_pred, axis=-1)
+    # y_true = K.argmax(y_true, axis=-1)
+    # 
+    # TP = K.sum(K.cast(K.equal(y_true, y_pred), dtype='float32'))
+    # TP_FP = K.sum(K.cast(K.greater_equal(y_pred, 0), dtype='float32'))
+    # 
+    # precision = TP / (TP_FP + K.epsilon())
+    # return precision
+    """
+    Calcula a precisão para tarefas de classificação multi-classe usando rótulos one-hot.
     
-    TP = K.sum(K.cast(K.equal(y_true, y_pred), dtype='float32'))
-    TP_FP = K.sum(K.cast(K.greater_equal(y_pred, 0), dtype='float32'))
-    
-    precision = TP / (TP_FP + K.epsilon())
-    return precision
+    Parâmetros:
+    - y_true: tensor de rótulos verdadeiros, codificados em one-hot
+    - y_pred: tensor de previsões do modelo, em probabilidade ou logit
 
+    Retorna:
+    - precision: precisão global (ou média ponderada) entre todas as classes
+    """
+    # Converter previsões para binário (0 ou 1) - opção 1
+    y_pred_binary = K.round(K.clip(y_pred, 0, 1))  # Caso o y_pred seja probabilístico
+    
+    # Verdadeiros Positivos (TP): predições corretas da classe positiva
+    TP = K.sum(K.round(K.clip(y_true * y_pred_binary, 0, 1)), axis=0)
+    
+    # Falsos Positivos (FP): predições incorretas onde previu positivo, mas era negativo
+    FP = K.sum(K.round(K.clip((1 - y_true) * y_pred_binary, 0, 1)), axis=0)
+    
+    # Precisão para cada classe
+    precision_per_class = TP / (TP + FP + K.epsilon())  # Adicionar epsilon para evitar divisão por 0
+    
+    # Média de precisão ponderada (por classe)
+    weighted_precision = K.mean(precision_per_class)
+    
+    return weighted_precision
 
 
 def running_f1(y_true, y_pred):
@@ -53,9 +91,41 @@ def running_f1(y_true, y_pred):
 
 
 def running_f1_multi(y_true, y_pred):
-    precision = running_precision_multi(y_true, y_pred)
-    recall = running_recall_multi(y_true, y_pred)
-    return 2 * ((precision * recall) / (precision + recall + K.epsilon()))
+    """
+    Calcula a métrica F1 para tarefas de classificação multi-classe usando rótulos one-hot.
+
+    Parâmetros:
+    - y_true: tensor de rótulos verdadeiros, codificados em one-hot
+    - y_pred: tensor de previsões do modelo, em probabilidade ou logit
+
+    Retorna:
+    - f1: F1-score global (ou média ponderada) entre todas as classes
+    """
+    # Converter previsões para binário (0 ou 1)
+    y_pred_binary = K.round(K.clip(y_pred, 0, 1))  # Caso o y_pred seja probabilístico
+
+    # Verdadeiros Positivos (TP)
+    TP = K.sum(K.round(K.clip(y_true * y_pred_binary, 0, 1)), axis=0)
+
+    # Falsos Positivos (FP)
+    FP = K.sum(K.round(K.clip((1 - y_true) * y_pred_binary, 0, 1)), axis=0)
+
+    # Falsos Negativos (FN)
+    FN = K.sum(K.round(K.clip(y_true * (1 - y_pred_binary), 0, 1)), axis=0)
+
+    # Precisão para cada classe
+    precision_per_class = TP / (TP + FP + K.epsilon())
+
+    # Recall para cada classe
+    recall_per_class = TP / (TP + FN + K.epsilon())
+
+    # F1 para cada classe
+    f1_per_class = 2 * (precision_per_class * recall_per_class) / (precision_per_class + recall_per_class + K.epsilon())
+
+    # Média de F1 ponderada (por classe)
+    weighted_f1 = K.mean(f1_per_class)
+
+    return weighted_f1
 
 
 
@@ -98,35 +168,28 @@ def soft_dice_loss(y_pred, y_true, smooth = 1):
 
 def soft_dice_loss_multi(y_pred, y_true, smooth=1):
     """
-    Função de perda Soft Dice Loss adaptada para múltiplas classes.
-    
+    Calcula a perda Soft Dice para tarefas de segmentação multi-classe.
+
     Parâmetros:
-    y_true: tensor de verdadeiros (one-hot encoded), shape (batch_size, height, width, num_classes)
-    y_pred: tensor de predições, shape (batch_size, height, width, num_classes)
-    smooth: valor pequeno para evitar divisão por zero (padrão = 1)
-    
-    Retorno:
-    loss: valor médio do Dice Loss entre as classes
+    - y_true: tensor de rótulos verdadeiros, codificados em one-hot
+    - y_pred: tensor de previsões do modelo, em probabilidade (softmax)
+    - smooth: valor pequeno adicionado para evitar divisão por zero
+
+    Retorna:
+    - perda: Soft Dice loss média entre todas as classes
     """
-    # Converte y_true e y_pred para float32, caso não estejam nesse formato
-    y_true_f = K.cast(y_true, 'float32')
-    y_pred_f = K.cast(y_pred, 'float32')
+    # Aplicar a função softmax nas previsões para obter probabilidades
+    y_pred = K.softmax(y_pred)
 
-    y_pred_f = K.clip(y_pred_f, K.epsilon(), 1. - K.epsilon())
+    # Flatten os tensores para calcular a Dice
+    y_true_f = K.flatten(y_true)
+    y_pred_f = K.flatten(y_pred)
 
+    # Cálculo da interseção
+    intersection = K.sum(y_true_f * y_pred_f)
 
-    # Achata as dimensões espaciais, mantendo a dimensão das classes
-    y_true_f = K.flatten(y_true_f)
-    y_pred_f = K.flatten(y_pred_f)
+    # Cálculo do coeficiente de Dice
+    dice = (2. * intersection + smooth) / (K.sum(y_true_f) + K.sum(y_pred_f) + smooth)
 
-    # Calcula a interseção e a soma de todos os valores por classe
-    intersection = K.sum(y_true_f * y_pred_f, axis=-1)
-    union = K.sum(y_true_f, axis=-1) + K.sum(y_pred_f, axis=-1)
-
-    # Calcula o Dice por classe
-    dice_per_class = (2. * intersection + smooth) / (union + smooth)
-
-    # Retorna o Dice Loss médio entre as classes (1 - Dice médio)
-    dice_loss = 1 - K.mean(dice_per_class)
-
-    return dice_loss
+    # Retornar a perda como 1 - Dice
+    return 1 - dice
