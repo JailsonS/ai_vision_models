@@ -38,7 +38,7 @@ config = {
         'cloud':3,
         'gvs':4,
         'ndfi':5, 
-        #'csfi':6
+        'csfi':6
     },
 
     'chip_size': 256,
@@ -85,12 +85,11 @@ def read_example(serialized: bytes) -> tuple[tf.Tensor, tf.Tensor]:
 
     example = tf.io.parse_single_example(serialized, features_dict)
 
-
     inputs = tf.io.parse_tensor(example["inputs"], tf.float32)
     labels = tf.io.parse_tensor(example["labels"], tf.int8)
 
     # tensorFlow can't infer the shapes, so we set them explicitly.
-    inputs.set_shape([None, None, len(config['channels'])])
+    inputs.set_shape([None, None, len(list(config['channels'].values()))])
     labels.set_shape([None, None, 1])
 
     # classifications are measured against one-hot encoded vectors.
@@ -109,6 +108,8 @@ def replace_nan(data, label):
 def normalize_channels(data, label):
 
     feature_index = list(config['channels'].values())
+
+    feature_index = feature_index[:-1]
 
     data_filtered = tf.gather(data, tf.constant(feature_index), axis=-1)
 
