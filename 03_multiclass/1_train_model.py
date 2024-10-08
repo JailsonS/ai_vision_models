@@ -63,7 +63,7 @@ config = {
             running_precision, 
         ],
         'save_ckpt': True,
-        'batch_size':5,
+        'batch_size':15,
         'epochs': 50,
         'output_model': '03_multiclass/model',
         'output_ckpt':'03_multiclass/model/ckpt',
@@ -149,10 +149,7 @@ dataset_val = tf.data.TFRecordDataset([config['val_dataset']['path']])\
     .map(replace_nan)\
     .map(normalize_channels)
 
-for data, label in dataset_train.take(15):
-   print(tf.reduce_min(label))
 
-exit()
 '''
 
     Apply Data Augmentation
@@ -236,3 +233,6 @@ model.fit(
     validation_data=dataset_val,
     validation_steps=int(config['val_dataset']['size'] / config['model_params']['batch_size']),
     callbacks=[cp_callback, tensorboard_callback, earlystopper_callback, csv_logger])
+
+
+model.save(config['base_path'] + '/model/lulc_v1.keras')
