@@ -109,10 +109,6 @@ def soft_dice_loss_multi(y_pred, y_true, smooth=1):
     loss: valor médio do Dice Loss entre as classes
     """
     # Converte y_true e y_pred para float32, caso não estejam nesse formato
-
-   
-
-
     y_true_f = K.cast(y_true, 'float32')
     y_pred_f = K.cast(y_pred, 'float32')
 

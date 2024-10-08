@@ -425,7 +425,8 @@ seeds_reference = ee.FeatureCollection(ASSET_SEEDS_REFERENCE)
 
 
 stack_info = ee.Image(image_sensor).select([f'{x}_median' for x in FEATURES])\
-    .addBands(ee.Image(reference_data).clip(roi))
+    .addBands(ee.Image(reference_data).clip(roi))\
+    .unmask(1000)
 
 
 
@@ -441,8 +442,8 @@ vali_size = int(len(list_pts) * VAL_RATIO)
 
 
 items = {
-    #'val': list_pts[train_size:train_size + vali_size],
-    #'train': list_pts[:train_size],
+    'val': list_pts[train_size:train_size + vali_size],
+    'train': list_pts[:train_size],
     'test': list_pts[train_size + vali_size:],
 }
 
