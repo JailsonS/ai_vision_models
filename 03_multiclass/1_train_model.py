@@ -140,8 +140,8 @@ def filter_inconsistent_shapes(image, mask):
     expected_image_shape = len(list(config['channels']))  # Forma esperada para a imagem
     expected_mask_shape = config['number_output_classes']
 
-    current_image_shape = image.shape[-1]
-    current_mask_shape = mask.shape[-1]
+    current_image_shape = tf.shape(image)[-1]
+    current_mask_shape = tf.shape(mask)[-1]
 
     return (expected_image_shape == current_image_shape) & (expected_mask_shape == current_mask_shape)
 
@@ -159,12 +159,15 @@ def count_samples(dataset):
 
 dataset_train = tf.data.TFRecordDataset([config['train_dataset']['path']])\
     .map(read_example)\
-    .map(normalize_channels)
+    .map(normalize_channels)\
+    .filter(lambda image, mask: filter_inconsistent_shapes(image, mask))\
+
 
 
 dataset_val = tf.data.TFRecordDataset([config['val_dataset']['path']])\
     .map(read_example)\
     .map(normalize_channels)
+    # .filter(lambda image, mask: filter_inconsistent_shapes(image, mask))\
 
 
 '''
@@ -172,7 +175,7 @@ dataset_val = tf.data.TFRecordDataset([config['val_dataset']['path']])\
 '''
 
 config['train_dataset']['size'] = count_samples(dataset_train)
-config['val_dataset']['size'] = count_samples(dataset_val)
+# config['val_dataset']['size'] = count_samples(dataset_val)
 
 '''
 
@@ -185,17 +188,11 @@ dataset_train = apply_augmentation(dataset_train)\
     .map(replace_nan)\
     .repeat()\
     .batch(config['model_params']['batch_size'], drop_remainder=True)\
-    .filter(lambda image, mask: filter_inconsistent_shapes(image, mask))\
     .prefetch(tf.data.AUTOTUNE)
 
 dataset_val = dataset_val\
     .map(replace_nan)\
     .batch(1, drop_remainder=True).repeat()
-
-
-dataset_val = dataset_val.filter(lambda image, mask: filter_inconsistent_shapes(image, mask))
-
-
 
 
 # for inputs, labels in dataset_train.take(15):
@@ -259,8 +256,24 @@ earlystopper_callback = tf.keras.callbacks.EarlyStopping(
 tensorboard_callback = tf.keras.callbacks.TensorBoard(log_dir=path_log_dir, histogram_freq=1)
 
 
+for epoch in range(config['model_params']['epochs']):
+    # Reaplicar o filtro a cada época
+    dataset_train_filtered = dataset_train.filter(lambda image, mask: filter_inconsistent_shapes(image, mask))
+    
+    # Verificar o número de amostras após o filtro
+    train_size = tf.data.experimental.cardinality(dataset_train_filtered).numpy()
+    print(f"Tamanho do dataset filtrado: {train_size}")
 
+    model.fit(
+        x=dataset_train_filtered,
+        epochs=1,  # Ajuste para treinar uma época por vez
+        steps_per_epoch=int(train_size / config['model_params']['batch_size']),
+        validation_data=dataset_val,
+        validation_steps=int(config['val_dataset']['size'] / config['model_params']['batch_size']),
+        callbacks=[cp_callback, tensorboard_callback, earlystopper_callback, csv_logger]
+    )
 
+'''
 model.fit(
     x=dataset_train,
     epochs=config['model_params']['epochs'],
@@ -269,6 +282,6 @@ model.fit(
     validation_steps=int(config['val_dataset']['size'] / config['model_params']['batch_size']),
     callbacks=[cp_callback, tensorboard_callback, earlystopper_callback, csv_logger])
 
-
+'''
 
 model.save(config['base_path'] + '/model/lulc_v1.keras')
