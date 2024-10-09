@@ -136,16 +136,14 @@ def normalize_channels(data, label):
     return data_normalized, label
 
 def filter_inconsistent_shapes(image, mask):
-    # Defina a forma esperada da imagem e máscara
-    expected_image_shape = (256, 256, len(list(config['channels'])))  # Forma esperada para a imagem
-    expected_mask_shape = (256, 256, config['number_output_classes'])   # Forma esperada para a máscara
-    
-    # Verifique se a imagem e a máscara têm as formas corretas
-    image_shape_is_correct = tf.reduce_all(tf.equal(tf.shape(image), expected_image_shape))
-    mask_shape_is_correct = tf.reduce_all(tf.equal(tf.shape(mask), expected_mask_shape))
-    
 
-    return tf.logical_and(image_shape_is_correct, mask_shape_is_correct)
+    expected_image_shape = len(list(config['channels']))  # Forma esperada para a imagem
+    expected_mask_shape = config['number_output_classes']
+
+    current_image_shape = image.shape[-1]
+    current_mask_shape = mask.shape[-1]
+
+    return (expected_image_shape == current_image_shape) & (expected_mask_shape == current_mask_shape)
 
 def count_samples(dataset):
     count = 0
@@ -198,10 +196,11 @@ dataset_val = dataset_val\
     .batch(1).repeat()
 
 
+
+
 # for inputs, labels in dataset_train.take(15):
 #     tf.debugging.check_numerics(inputs, 'Input contains NaN or Inf')
 #     tf.debugging.check_numerics(labels, 'Labels contain NaN or Inf')
-
 
 '''
 
