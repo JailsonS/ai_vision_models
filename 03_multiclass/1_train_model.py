@@ -56,11 +56,11 @@ config = {
 
     'model_params': {
         'model_name':'multiclass_s2_v1',
-        'loss': soft_dice_loss_multi,
+        'loss': soft_dice_loss,
         'metrics':[
-            running_recall_multi, 
-            running_f1_multi, 
-            running_precision_multi, 
+            running_recall, 
+            running_f1, 
+            running_precision, 
             tf.keras.metrics.OneHotIoU(
                 num_classes=8,
                 target_class_ids=[0,1,2,3,4,5,6,7],
@@ -110,7 +110,6 @@ def replace_nan(data, label):
 
     return data, label
 
-
 def normalize_channels(data, label):
 
     feature_index = list(config['channels'].values())
@@ -135,6 +134,17 @@ def normalize_channels(data, label):
     data_normalized = tf.stack(data_norm, axis=2)
 
     return data_normalized, label
+
+def filter_inconsistent_shapes(image, mask):
+    # Defina a forma esperada da imagem e máscara
+    expected_image_shape = (256, 256, 8)  # Forma esperada para a imagem
+    expected_mask_shape = (256, 256, 1)   # Forma esperada para a máscara
+    
+    # Verifique se a imagem e a máscara têm as formas corretas
+    return tf.equal(tf.shape(image), expected_image_shape) & tf.equal(tf.shape(mask), expected_mask_shape)
+
+# Aplique a função no dataset usando o método .filter()
+# filtered_dataset = dataset.filter(lambda image, mask: filter_inconsistent_shapes(image, mask))
 
 '''
 
