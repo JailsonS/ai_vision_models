@@ -188,12 +188,12 @@ config['val_dataset']['size'] = count_samples(dataset_val)
 dataset_train = apply_augmentation(dataset_train)\
     .map(replace_nan)\
     .repeat()\
-    .batch(config['model_params']['batch_size'])\
+    .batch(config['model_params']['batch_size'], drop_remainder=True)\
     .prefetch(tf.data.AUTOTUNE)
 
 dataset_val = dataset_val\
     .map(replace_nan)\
-    .batch(1).repeat()
+    .batch(1, drop_remainder=True).repeat()
 
 
 
