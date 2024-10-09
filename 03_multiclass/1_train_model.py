@@ -67,7 +67,7 @@ config = {
             )
         ],
         'save_ckpt': True,
-        'batch_size':15,
+        'batch_size':20,
         'epochs': 50,
         'output_model': '03_multiclass/model',
         'output_ckpt':'03_multiclass/model/ckpt',
@@ -155,12 +155,10 @@ def filter_inconsistent_shapes(image, mask):
 
 dataset_train = tf.data.TFRecordDataset([config['train_dataset']['path']])\
     .map(read_example)\
-    .map(replace_nan)\
     .map(normalize_channels)
 
 dataset_val = tf.data.TFRecordDataset([config['val_dataset']['path']])\
     .map(read_example)\
-    .map(replace_nan)\
     .map(normalize_channels)
 
 
@@ -172,6 +170,7 @@ dataset_val = tf.data.TFRecordDataset([config['val_dataset']['path']])\
 
 
 dataset_train = apply_augmentation(dataset_train)\
+    .map(replace_nan)\
     .repeat()\
     .batch(config['model_params']['batch_size'])\
     .prefetch(tf.data.AUTOTUNE)
