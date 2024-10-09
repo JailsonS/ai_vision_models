@@ -165,7 +165,7 @@ dataset_train = tf.data.TFRecordDataset([config['train_dataset']['path']])\
 dataset_val = tf.data.TFRecordDataset([config['val_dataset']['path']])\
     .map(read_example)\
     .map(normalize_channels)
-    # .filter(lambda image, mask: filter_inconsistent_shapes(image, mask))\
+
 
 
 '''
@@ -178,12 +178,7 @@ dataset_train = apply_augmentation(dataset_train)\
     .map(replace_nan)\
     .filter(lambda image, mask: filter_inconsistent_shapes(image, mask))
 
-'''
-    Compute total dataset size
-'''
-
 config['train_dataset']['size'] = count_samples(dataset_train)
-# config['val_dataset']['size'] = count_samples(dataset_val)
 
 '''
     Apply batches
