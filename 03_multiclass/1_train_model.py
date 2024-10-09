@@ -141,10 +141,16 @@ def filter_inconsistent_shapes(image, mask):
     expected_mask_shape = (256, 256, config['number_output_classes'])   # Forma esperada para a máscara
     
     # Verifique se a imagem e a máscara têm as formas corretas
-    return tf.equal(tf.shape(image), expected_image_shape) & tf.equal(tf.shape(mask), expected_mask_shape)
+    image_shape_is_correct = tf.reduce_all(tf.equal(tf.shape(image), expected_image_shape))
+    mask_shape_is_correct = tf.reduce_all(tf.equal(tf.shape(mask), expected_mask_shape))
+    
 
-# Aplique a função no dataset usando o método .filter()
-# filtered_dataset = dataset.filter(lambda image, mask: filter_inconsistent_shapes(image, mask))
+    return tf.logical_and(image_shape_is_correct, mask_shape_is_correct)
+
+def count_samples(dataset):
+    count = 0
+    for _ in dataset: count += 1
+    return count
 
 '''
 
@@ -157,10 +163,22 @@ dataset_train = tf.data.TFRecordDataset([config['train_dataset']['path']])\
     .map(read_example)\
     .map(normalize_channels)
 
+dataset_train = dataset_train.filter(lambda image, mask: filter_inconsistent_shapes(image, mask))
+
+
 dataset_val = tf.data.TFRecordDataset([config['val_dataset']['path']])\
     .map(read_example)\
     .map(normalize_channels)
 
+dataset_val = dataset_val.filter(lambda image, mask: filter_inconsistent_shapes(image, mask))
+
+
+'''
+    Compute total dataset size
+'''
+
+config['train_dataset']['size'] = count_samples(dataset_train)
+config['val_dataset']['size'] = count_samples(dataset_val)
 
 '''
 
@@ -175,7 +193,9 @@ dataset_train = apply_augmentation(dataset_train)\
     .batch(config['model_params']['batch_size'])\
     .prefetch(tf.data.AUTOTUNE)
 
-dataset_val = dataset_val.batch(1).repeat()
+dataset_val = dataset_val\
+    .map(replace_nan)\
+    .batch(1).repeat()
 
 
 # for inputs, labels in dataset_train.take(15):
