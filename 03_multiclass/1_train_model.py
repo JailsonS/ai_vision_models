@@ -38,17 +38,7 @@ config = {
         'cloud':3,
         'gvs':4,
         'ndfi':5, 
-        'csfi':6
-    },
-
-    'channels_selected': {
-        'gv':0, 
-        'npv':1, 
-        'soil':2, 
-        'cloud':3,
-        'gvs':4,
-        'ndfi':5, 
-        # 'csfi':6
+        #'csfi':6
     },
 
     'chip_size': 256,
@@ -123,7 +113,7 @@ def replace_nan(data, label):
 
 def normalize_channels(data, label):
 
-    feature_index = list(config['channels_selected'].values())
+    feature_index = list(config['channels'].values())
 
     data_filtered = tf.gather(data, tf.constant(feature_index), axis=-1)
 
@@ -192,7 +182,7 @@ dataset_val = dataset_val.batch(1).repeat()
 '''
 
 model = Unet(
-    list(dict(config['channels_selected']).values()), 
+    list(dict(config['channels']).values()), 
     optimizer=config['model_params']['optimizer'], 
     loss=config['model_params']['loss'], 
     metrics=config['model_params']['metrics'],
