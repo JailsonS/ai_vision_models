@@ -185,6 +185,7 @@ dataset_train = apply_augmentation(dataset_train)\
     .map(replace_nan)\
     .repeat()\
     .batch(config['model_params']['batch_size'], drop_remainder=True)\
+    .filter(lambda image, mask: filter_inconsistent_shapes(image, mask))\
     .prefetch(tf.data.AUTOTUNE)
 
 dataset_val = dataset_val\
@@ -192,7 +193,6 @@ dataset_val = dataset_val\
     .batch(1, drop_remainder=True).repeat()
 
 
-dataset_train = dataset_train.filter(lambda image, mask: filter_inconsistent_shapes(image, mask))
 dataset_val = dataset_val.filter(lambda image, mask: filter_inconsistent_shapes(image, mask))
 
 
