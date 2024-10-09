@@ -137,8 +137,8 @@ def normalize_channels(data, label):
 
 def filter_inconsistent_shapes(image, mask):
     # Defina a forma esperada da imagem e máscara
-    expected_image_shape = (256, 256, 8)  # Forma esperada para a imagem
-    expected_mask_shape = (256, 256, 1)   # Forma esperada para a máscara
+    expected_image_shape = (256, 256, len(list(config['channels'])))  # Forma esperada para a imagem
+    expected_mask_shape = (256, 256, config['number_output_classes'])   # Forma esperada para a máscara
     
     # Verifique se a imagem e a máscara têm as formas corretas
     return tf.equal(tf.shape(image), expected_image_shape) & tf.equal(tf.shape(mask), expected_mask_shape)
@@ -172,7 +172,6 @@ dataset_val = tf.data.TFRecordDataset([config['val_dataset']['path']])\
 
 
 dataset_train = apply_augmentation(dataset_train)\
-    .map(replace_nan)\
     .repeat()\
     .batch(config['model_params']['batch_size'])\
     .prefetch(tf.data.AUTOTUNE)
