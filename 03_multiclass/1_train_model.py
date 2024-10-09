@@ -161,14 +161,10 @@ dataset_train = tf.data.TFRecordDataset([config['train_dataset']['path']])\
     .map(read_example)\
     .map(normalize_channels)
 
-dataset_train = dataset_train.filter(lambda image, mask: filter_inconsistent_shapes(image, mask))
-
 
 dataset_val = tf.data.TFRecordDataset([config['val_dataset']['path']])\
     .map(read_example)\
     .map(normalize_channels)
-
-dataset_val = dataset_val.filter(lambda image, mask: filter_inconsistent_shapes(image, mask))
 
 
 '''
@@ -194,6 +190,10 @@ dataset_train = apply_augmentation(dataset_train)\
 dataset_val = dataset_val\
     .map(replace_nan)\
     .batch(1, drop_remainder=True).repeat()
+
+
+dataset_train = dataset_train.filter(lambda image, mask: filter_inconsistent_shapes(image, mask))
+dataset_val = dataset_val.filter(lambda image, mask: filter_inconsistent_shapes(image, mask))
 
 
 
