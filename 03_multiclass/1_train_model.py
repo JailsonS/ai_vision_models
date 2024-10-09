@@ -260,7 +260,7 @@ for epoch in range(config['model_params']['epochs']):
     # Reaplicar o filtro a cada época
     dataset_train_filtered = dataset_train.filter(lambda image, mask: filter_inconsistent_shapes(image, mask))
     
-    config['train_dataset']['size'] = count_samples(dataset_train)
+    config['train_dataset']['size'] = count_samples(dataset_train_filtered)
 
     model.fit(
         x=dataset_train_filtered,
