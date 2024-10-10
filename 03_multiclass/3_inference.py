@@ -410,7 +410,7 @@ with rasterio.open(
 
 
 # delete chunks
-for i in glob(glob(OUTPUT_TILE + '/*')):
+for i in glob(OUTPUT_TILE + '/*'):
     os.remove(i)
 
 print('image processed')
