@@ -379,9 +379,8 @@ items = enumerate(coords)
 
 print(len(list(items)))
 
-predict(items=items, year=2020)
+# predict(items=items, year=2020)
 
-'''
 # mosaic chunks
 list_chunks = [rasterio.open(x) for x in glob(OUTPUT_TILE + '/*')]
 
@@ -408,24 +407,7 @@ with rasterio.open(
 ) as output:
     output.write(image_mosaic)
 
-'''
-list_chunks = list(glob(OUTPUT_TILE + '/*'))
-image_mosaic, out_trans = merge_rasters_in_batches(list_chunks, batch_size=200)
 
-name_image = f'{OUTPUT_PATH}_predicted.tif'
-
-with rasterio.open(
-    name_image,
-    'w',
-    driver = 'COG',
-    count = config['number_output_classes'],
-    height = image_mosaic.shape[1],
-    width  = image_mosaic.shape[2],
-    dtype  = 'uint8',
-    crs    = rasterio.crs.CRS.from_epsg(4326),
-    transform=out_trans
-) as output:
-    output.write(image_mosaic)
 
 # delete chunks
 for i in glob(glob(OUTPUT_TILE + '/*')):
