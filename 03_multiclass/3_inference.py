@@ -277,6 +277,33 @@ def predict(items, year):
             ) as output:
                 output.write(probabilities)
 
+def merge_rasters_in_batches(files, batch_size=100):
+    merged_image = None
+    merged_transform = None
+
+    for i in range(0, len(files), batch_size):
+        batch_files = files[i:i + batch_size]
+        
+        # Open files in the current batch
+        with rasterio.Env():
+            chunks = [rasterio.open(x) for x in batch_files]
+            
+            # Merge the current batch
+            batch_image, batch_transform = merge(chunks)
+            
+            # Merge with previous batches if necessary
+            if merged_image is None:
+                merged_image = batch_image
+                merged_transform = batch_transform
+            else:
+                # Merge the current batch result with the previous result
+                merged_image, merged_transform = merge([merged_image, batch_image])
+            
+            # Close all files in the batch
+            for chunk in chunks:
+                chunk.close()
+
+    return merged_image, merged_transform
 
 '''
 
@@ -341,10 +368,11 @@ model.compile(
 
 items = enumerate(coords)
 
+print(len(list(items)))
 
 predict(items=items, year=2020)
 
-
+'''
 # mosaic chunks
 list_chunks = [rasterio.open(x) for x in glob(OUTPUT_TILE + '/*')]
 
@@ -371,6 +399,24 @@ with rasterio.open(
 ) as output:
     output.write(image_mosaic)
 
+'''
+list_chunks = [rasterio.open(x) for x in glob(OUTPUT_TILE + '/*')]
+image_mosaic, out_trans = merge_rasters_in_batches(list_chunks, batch_size=200)
+
+name_image = f'{OUTPUT_PATH}_predicted.tif'
+
+with rasterio.open(
+    name_image,
+    'w',
+    driver = 'COG',
+    count = config['number_output_classes'],
+    height = image_mosaic.shape[1],
+    width  = image_mosaic.shape[2],
+    dtype  = 'uint8',
+    crs    = rasterio.crs.CRS.from_epsg(4326),
+    transform=out_trans
+) as output:
+    output.write(image_mosaic)
 
 # delete chunks
 for i in glob(glob(OUTPUT_TILE + '/*')):
