@@ -266,7 +266,7 @@ SCALE_X = proj['transform'][0]
 SCALE_Y = -proj['transform'][4]
 
 # patch size in pixels.
-PATCH_SIZE = 256
+PATCH_SIZE = 512
 
 # offset to the upper left corner.
 OFFSET_X = -SCALE_X * PATCH_SIZE / 2
