@@ -10,11 +10,12 @@ sys.path.append(os.path.abspath('.'))
 import numpy as np
 import os
 import ee, io
-import concurrent
+import concurrent, gc
 import tensorflow as tf
 import keras, rasterio
 
-
+from glob import glob
+from rasterio.merge import merge
 from retry import retry
 from numpy.lib.recfunctions import structured_to_unstructured
 from utils.helpers import *
@@ -76,6 +77,9 @@ config = {
 
 
 ASSET_REFERENCE = 'projects/ee-mapbiomas-imazon/assets/lulc/reference_map/editted_classification_2020_14'
+
+OUTPUT_PATH = '03_multiclass/predictions'
+OUTPUT_TILE = '03_multiclass/predictions/tiles'
 
 SENTINEL_NEW_NAMES = [
     'blue',
@@ -188,9 +192,9 @@ def get_patch(items):
 
     """Get a patch centered on the coordinates, as a numpy array."""
 
-    response = {'data':None, 'error':'', 'affine':[]}
+    response = {'id': items[0],'data': None, 'error':'', 'affine':[]}
     
-    coords = items
+    coords = items[1]
 
     image = image_sensor
 
@@ -220,9 +224,9 @@ def get_patch(items):
         print(e)
         return response
     
-    return data
+    return response
 
-def predict(items, year, month, k):
+def predict(items, year):
 
 
     future_to_point = {EXECUTOR.submit(get_patch, item): item for item in items}
@@ -234,28 +238,21 @@ def predict(items, year, month, k):
 
         if response['data'] is not None:
 
-            data = structured_to_unstructured(data)
+            data = structured_to_unstructured(response['data'])
+
+            print(data.shape)
             
             data_norma = normalize_channels(data)
-            
-            data_transposed = np.transpose(data_norma, (1,2,0))
-            
-            data_transposed = np.expand_dims(data_transposed, axis=0)
 
+            print(data_norma.shape)
 
+         
+            data_transposed = np.expand_dims(data_norma, axis=0)
+
+            print(data_transposed.shape)
             # add exception here
             # for prediction its necessary to have an extra dimension representing the bach
-            probabilities = model.predict(data_transposed)
-
-
-            # it only checks the supposed prediction and skip it if there is no logging
-            prediction = np.copy(probabilities)
-            prediction[prediction < 0.2] = 0
-            prediction[prediction >= 0.2] = 1
-
-            if np.max(prediction[0]) == 0.0 or np.max(prediction[0]) == 0:
-                continue
-            
+            probabilities = model.predict(data_transposed)            
 
             probabilities = probabilities * 100
             probabilities = probabilities[0].astype(int)
@@ -263,15 +260,15 @@ def predict(items, year, month, k):
 
             probabilities = np.transpose(probabilities, (2,0,1))
 
-            name = ''
+            name = f'{response["id"]}_{str(year)}_pred_chunk.tif'
 
             print(name)
             
             with rasterio.open(
-                name,
+                OUTPUT_TILE + '/' +name,
                 'w',
                 driver = 'COG',
-                count = 1,
+                count = config['number_output_classes'],
                 height = probabilities.shape[1],
                 width  = probabilities.shape[2],
                 dtype  = probabilities.dtype,
@@ -307,7 +304,9 @@ collection_w_cloud = collection_w_cloud\
     .map(lambda image: get_ndfi(image))\
     .map(lambda image: get_csfi(image))
 
-image_sensor = ee.Image(collection_w_cloud.reduce(ee.Reducer.median())).clip(roi)
+image_sensor = ee.Image(collection_w_cloud.reduce(ee.Reducer.median()))\
+    .select([x + '_median' for x in FEATURES])\
+    .clip(roi)
 
 
 
@@ -323,7 +322,9 @@ coords = seeds.reduceColumns(ee.Reducer.toList(), ['.geo']).get('list').getInfo(
 coords = [x['coordinates'] for x in coords]
 
 '''
+
     Load model
+
 '''
 
 model = keras.saving.load_model(config['model_params']['output_model'] + '/lulc_v1.keras', compile=False)
@@ -333,3 +334,54 @@ model.compile(
     loss=config['model_params']['loss'], 
     metrics=config['model_params']['metrics']
 )
+
+'''
+    Run
+'''
+
+items = enumerate(coords)
+
+
+predict(items=items, year=2020)
+
+
+# mosaic chunks
+list_chunks = [rasterio.open(x) for x in glob(OUTPUT_TILE + '/*')]
+
+
+if len(list_chunks) == 0: exit()
+
+
+image_mosaic, out_trans = merge(list_chunks)
+
+
+# save mosaic pred
+name_image = f'{OUTPUT_PATH}_predicted.tif'
+
+with rasterio.open(
+    name_image,
+    'w',
+    driver = 'COG',
+    count = config['number_output_classes'],
+    height = image_mosaic.shape[1],
+    width  = image_mosaic.shape[2],
+    dtype  = 'uint8',
+    crs    = rasterio.crs.CRS.from_epsg(4326),
+    transform=out_trans
+) as output:
+    output.write(image_mosaic)
+
+
+# delete chunks
+for i in glob(glob(OUTPUT_TILE + '/*')):
+    os.remove(i)
+
+print('image processed')
+
+# Coletar lixo após cada imagem processada
+gc.collect()
+
+# Desalocar variáveis específicas
+del items
+del image_mosaic
+del out_trans

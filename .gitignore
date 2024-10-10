@@ -19,3 +19,4 @@ accuracy_c9
 03_multiclass/data
 03_multiclass/model
 03_multiclass/notebooks
+03_multiclass/predictions/tiles
