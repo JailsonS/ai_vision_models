@@ -308,8 +308,6 @@ TEST_RATIO = 0.2  # 20% test
 
 '''
 
-
-
 def serialize(inputs: np.ndarray, labels: np.ndarray) -> bytes:
     features = {
         name: tf.train.Feature(
