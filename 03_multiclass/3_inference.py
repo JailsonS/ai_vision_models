@@ -280,6 +280,7 @@ def predict(items, year):
 def merge_rasters_in_batches(files, batch_size=100):
     merged_image = None
     merged_transform = None
+    merged_profile = None
 
     for i in range(0, len(files), batch_size):
         batch_files = files[i:i + batch_size]
@@ -291,19 +292,27 @@ def merge_rasters_in_batches(files, batch_size=100):
             # Merge the current batch
             batch_image, batch_transform = merge(chunks)
             
-            # Merge with previous batches if necessary
+            # Use the profile from the first chunk in the batch
+            if merged_profile is None:
+                merged_profile = chunks[0].profile
+
+            # If this is the first batch, set the initial merged image and transform
             if merged_image is None:
                 merged_image = batch_image
                 merged_transform = batch_transform
             else:
                 # Merge the current batch result with the previous result
-                merged_image, merged_transform = merge([merged_image, batch_image])
+                merged_image, merged_transform = merge(
+                    [rasterio.io.MemoryFile().open() for _ in [merged_image, batch_image]], 
+                    out=merged_image, 
+                    transform=merged_transform
+                )
             
             # Close all files in the batch
             for chunk in chunks:
                 chunk.close()
 
-    return merged_image, merged_transform
+    return merged_image, merged_transform, merged_profile
 
 '''
 
@@ -400,7 +409,7 @@ with rasterio.open(
     output.write(image_mosaic)
 
 '''
-list_chunks = [rasterio.open(x) for x in glob(OUTPUT_TILE + '/*')]
+list_chunks = list(glob(OUTPUT_TILE + '/*'))
 image_mosaic, out_trans = merge_rasters_in_batches(list_chunks, batch_size=200)
 
 name_image = f'{OUTPUT_PATH}_predicted.tif'
