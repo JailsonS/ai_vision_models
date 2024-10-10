@@ -187,7 +187,7 @@ ee.Initialize(project=PROJECT)
 
 '''
 
-PATH_DIR = '/home/jailson/Imazon/dl_applications/source/03_multiclass'
+PATH_DIR = '03_multiclass'
 
 ASSET_REFERENCE = 'projects/ee-mapbiomas-imazon/assets/lulc/reference_map/editted_classification_2020_14'
 
