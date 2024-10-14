@@ -42,7 +42,7 @@ config = {
         #'csfi':6
     },
 
-    'chip_size': 256,
+    'chip_size': 512,
 
     'train_dataset': {
         'path': '03_multiclass/data/train.tfrecord',
