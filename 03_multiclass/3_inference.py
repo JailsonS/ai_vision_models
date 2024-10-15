@@ -377,16 +377,10 @@ model.compile(
 
 items = enumerate(coords)
 
-print(len(list(items)))
-
-# predict(items=items, year=2020)
+predict(items=items, year=2020)
 
 # mosaic chunks
 list_chunks = [rasterio.open(x) for x in glob(OUTPUT_TILE + '/*')]
-
-
-if len(list_chunks) == 0: exit()
-
 
 image_mosaic, out_trans = merge(list_chunks)
 
