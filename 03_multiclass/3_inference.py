@@ -77,6 +77,7 @@ config = {
 
 
 ASSET_REFERENCE = 'projects/ee-mapbiomas-imazon/assets/lulc/reference_map/editted_classification_2020_14'
+ASSET_TILES = 'projects/mapbiomas-workspace/AUXILIAR/cartas'
 
 OUTPUT_PATH = '03_multiclass/predictions'
 OUTPUT_TILE = '03_multiclass/predictions/tiles'
@@ -277,52 +278,16 @@ def predict(items, year):
             ) as output:
                 output.write(probabilities)
 
-def merge_rasters_in_batches(files, batch_size=100):
-    merged_image = None
-    merged_transform = None
-    merged_profile = None
-
-    for i in range(0, len(files), batch_size):
-        batch_files = files[i:i + batch_size]
-        
-        # Open files in the current batch
-        with rasterio.Env():
-            chunks = [rasterio.open(x) for x in batch_files]
-            
-            # Merge the current batch
-            batch_image, batch_transform = merge(chunks)
-            
-            # Use the profile from the first chunk in the batch
-            if merged_profile is None:
-                merged_profile = chunks[0].profile
-
-            # If this is the first batch, set the initial merged image and transform
-            if merged_image is None:
-                merged_image = batch_image
-                merged_transform = batch_transform
-            else:
-                # Merge the current batch result with the previous result
-                merged_image, merged_transform = merge(
-                    [rasterio.io.MemoryFile().open() for _ in [merged_image, batch_image]], 
-                    out=merged_image, 
-                    transform=merged_transform
-                )
-            
-            # Close all files in the batch
-            for chunk in chunks:
-                chunk.close()
-
-    return merged_image, merged_transform, merged_profile
-
 '''
 
     Input 
 
 '''
 
-reference_data = ee.Image(ASSET_REFERENCE).rename('label')\
-    .rename('label')
+# reference_data = ee.Image(ASSET_REFERENCE).rename('label')\
+#     .rename('label')
 
+reference_data = ee.FeatureCollection(ASSET_TILES).filter('grid_name == "SA-22-Z-B"')
 
 roi = reference_data.geometry()
 
@@ -363,7 +328,7 @@ coords = [x['coordinates'] for x in coords]
 
 '''
 
-model = keras.saving.load_model(config['model_params']['output_model'] + '/lulc_v1.keras', compile=False)
+model = keras.saving.load_model(config['model_params']['output_model'] + '/lulc_v2.keras', compile=False)
 
 model.compile(
     optimizer=config['model_params']['optimizer'], 
@@ -419,3 +384,4 @@ del out_trans
 
 
 # https://code.earthengine.google.com/f0351988a8674bc3268bcf6fca1b1552
+# https://code.earthengine.google.com/015e3f361e49bef8bd85900238a576ef 
